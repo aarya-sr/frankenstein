@@ -3,19 +3,19 @@ import { motion, useInView } from 'framer-motion'
 
 const NOTES = [
   {
-    quote: "I told it to build a loan agent. It asked me seven clarifying questions I hadn't thought of. Rude. But effective.",
+    quote: "I described a loan underwriting workflow in plain English. Ten minutes later I had a working multi-agent pipeline with proper validation and error handling.",
     author: 'Subject #0031',
-    role: 'Definitely Not the Founders',
+    role: 'Financial Services Engineer',
   },
   {
-    quote: "The critic agent rejected my spec and called it 'architecturally ambitious.' I've never been roasted by an LLM before.",
+    quote: "The critic agent found three edge cases in my spec that would have taken days to discover in production. Cross-model adversarial review is no joke.",
     author: 'Subject #0047',
-    role: 'Willing Test Subject',
+    role: 'ML Platform Lead',
   },
   {
-    quote: "Does it work? Yes. Do I understand how? Absolutely not. Am I concerned? A little bit.",
+    quote: "We went from 'I have an idea for automating supplier scoring' to a testable CrewAI project in under 15 minutes. The learning loop means each build gets smarter.",
     author: 'Subject #0082',
-    role: 'Anonymous (Our Mom)',
+    role: 'Operations Analyst',
   },
 ]
 

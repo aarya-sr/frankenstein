@@ -8,10 +8,12 @@ import { SpecReviewCard } from "./SpecReviewCard"
 import { CompletionCard } from "./CompletionCard"
 import { QuestionGroupCard } from "./QuestionGroupCard"
 import { TypingIndicator } from "./TypingIndicator"
+import { ActivityPill } from "./ActivityPill"
+import { ErrorCard } from "./ErrorCard"
 import type { RequirementsDoc, AgentSpec, CritiqueReport } from "../types/models"
 
 export function ChatThread({ sendMessage }: { sendMessage: (data: Record<string, unknown>) => void }) {
-  const { messages, isWorking, sessionId } = usePipelineState()
+  const { messages, isWorking, sessionId, currentStage } = usePipelineState()
   const dispatch = usePipelineDispatch()
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -81,6 +83,29 @@ export function ChatThread({ sendMessage }: { sendMessage: (data: Record<string,
     [sessionId, dispatch]
   )
 
+  const handleReset = useCallback(() => {
+    sessionStorage.removeItem("frankenstein_session")
+    dispatch({ type: "RESET" })
+  }, [dispatch])
+
+  const handleRetry = useCallback(() => {
+    // Find last user message and re-send it
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].variant === "user") {
+        const text = (messages[i].payload as { text?: string }).text
+        if (text) {
+          dispatch({ type: "SET_WORKING", payload: true })
+          sendMessage({
+            type: "control.user_input",
+            payload: { text },
+            session_id: sessionId!,
+          })
+          return
+        }
+      }
+    }
+  }, [messages, dispatch, sendMessage, sessionId])
+
   // Track if PhaseDividers were already rendered (deduplication)
   let requirementsDividerShown = false
   let specDividerShown = false
@@ -102,6 +127,31 @@ export function ChatThread({ sendMessage }: { sendMessage: (data: Record<string,
             return (
               <div key={entry.id} className={i === 0 ? "" : "mt-4"}>
                 <PhaseDivider label={(entry.payload as { label: string }).label} />
+              </div>
+            )
+          }
+
+          // Render activity pills inline
+          if (entry.type === "activity") {
+            return (
+              <div key={entry.id} className={i === 0 ? "" : "mt-1"}>
+                <ActivityPill entry={entry} />
+              </div>
+            )
+          }
+
+          // Render error cards
+          if (entry.type === "error") {
+            const p = entry.payload as { stage: string; message: string; recoverable: boolean }
+            return (
+              <div key={entry.id} className={i === 0 ? "" : "mt-4"}>
+                <ErrorCard
+                  stage={p.stage}
+                  message={p.message}
+                  recoverable={p.recoverable}
+                  onReset={handleReset}
+                  onRetry={p.recoverable ? handleRetry : undefined}
+                />
               </div>
             )
           }
@@ -171,6 +221,7 @@ export function ChatThread({ sendMessage }: { sendMessage: (data: Record<string,
               test_passed?: number
               test_total?: number
               file_count?: number
+              build_time_seconds?: number
             }
             return (
               <div key={entry.id} className={i === 0 ? "" : "mt-4"}>
@@ -184,6 +235,7 @@ export function ChatThread({ sendMessage }: { sendMessage: (data: Record<string,
                   testPassed={p.test_passed}
                   testTotal={p.test_total}
                   fileCount={p.file_count}
+                  buildTimeSeconds={p.build_time_seconds}
                 />
               </div>
             )
@@ -198,7 +250,7 @@ export function ChatThread({ sendMessage }: { sendMessage: (data: Record<string,
 
         {isWorking && (
           <div className="mt-4">
-            <TypingIndicator />
+            <TypingIndicator currentStage={currentStage} />
           </div>
         )}
 

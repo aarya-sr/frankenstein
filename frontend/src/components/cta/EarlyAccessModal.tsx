@@ -9,11 +9,33 @@ interface EarlyAccessModalProps {
 
 export function EarlyAccessModal({ isOpen, onClose, targetInterest }: EarlyAccessModalProps) {
   const [email, setEmail] = useState('')
+  const [interest, setInterest] = useState(targetInterest || '')
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim()) return
+    setSubmitting(true)
+    setError('')
+
+    const formspreeId = import.meta.env.VITE_FORMSPREE_ID
+    if (formspreeId) {
+      try {
+        const res = await fetch(`https://formspree.io/f/${formspreeId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, interest }),
+        })
+        if (!res.ok) throw new Error('Submission failed')
+      } catch {
+        setError('Something went wrong. Please try again.')
+        setSubmitting(false)
+        return
+      }
+    }
+    setSubmitting(false)
     setSubmitted(true)
   }
 
@@ -62,7 +84,7 @@ export function EarlyAccessModal({ isOpen, onClose, targetInterest }: EarlyAcces
 
                 <div className="form-field">
                   <label className="form-label">PRIMARY RESEARCH INTEREST</label>
-                  <select className="form-input form-select" defaultValue={targetInterest || ''}>
+                  <select className="form-input form-select" value={interest} onChange={(e) => setInterest(e.target.value)}>
                     <option value="" disabled>Select area of study...</option>
                     <option value="finance">Financial Services</option>
                     <option value="healthcare">Healthcare</option>
@@ -72,8 +94,10 @@ export function EarlyAccessModal({ isOpen, onClose, targetInterest }: EarlyAcces
                   </select>
                 </div>
 
-                <button type="submit" className="form-submit clickable">
-                  REGISTER FOR EARLY ACCESS
+                {error && <p style={{ color: 'var(--crimson)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{error}</p>}
+
+                <button type="submit" className="form-submit clickable" disabled={submitting}>
+                  {submitting ? 'REGISTERING...' : 'REGISTER FOR EARLY ACCESS'}
                 </button>
 
                 <p className="form-disclaimer">

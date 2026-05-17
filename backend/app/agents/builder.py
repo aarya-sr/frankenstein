@@ -273,7 +273,15 @@ def builder_agent(
             break
 
         repair_history.append({"attempt": attempt, "errors": critical})
-        files = _repair_code(llm, files, critical, spec, plan)
+        # RAG: retrieve similar past repair patterns
+        repair_context = []
+        for err in critical:
+            patterns = chroma.find_similar_repair_patterns(
+                err.get("message", "") or err.get("code", ""), n_results=2
+            )
+            if patterns:
+                repair_context.extend(patterns)
+        files = _repair_code(llm, files, critical, spec, plan, repair_context)
         _inject_sample_data(files, spec)
 
     deps = _collect_dependencies(spec, tool_templates)
@@ -364,13 +372,18 @@ def _generate_code(llm, spec, tool_templates, plan, failure_feedback):
     return {k: v for k, v in data.items() if isinstance(v, str)}
 
 
-def _repair_code(llm, files, errors, spec, plan):
+def _repair_code(llm, files, errors, spec, plan, repair_context=None):
     user_parts = [
         "## Current Files\n\n" + json.dumps(files, indent=2),
         "\n\n## Validator Errors (fix every one)\n\n" + json.dumps(errors, indent=2),
         "\n\n## Spec\n\n" + spec.model_dump_json(indent=2),
         "\n\n## Plan\n\n" + json.dumps(plan, indent=2),
     ]
+    if repair_context:
+        user_parts.append(
+            "\n\n## Past Repair Patterns (similar errors fixed before)\n\n"
+            + json.dumps(repair_context, indent=2)
+        )
     response = llm.call(
         agent_name=AGENT_NAME,
         system_prompt=REPAIR_SYSTEM,

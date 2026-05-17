@@ -41,5 +41,9 @@ class ErrorMessage(BaseMessage):
     type: Literal["error.llm_failure", "error.pipeline_failure"] = "error.pipeline_failure"
 
 
+class ActivityMessage(BaseMessage):
+    type: Literal["status.activity"] = "status.activity"
+
+
 class ControlMessage(BaseMessage):
     type: Literal["control.approve", "control.reject", "control.user_input"]

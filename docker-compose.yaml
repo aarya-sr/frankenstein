@@ -2,9 +2,10 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "7749:7749"
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - BACKEND_PORT=7749
       - CHROMA_PERSIST_DIR=/data/chroma
       - GENERATED_AGENTS_DIR=/data/generated_agents
     volumes:
@@ -16,12 +17,14 @@ services:
   chroma:
     image: chromadb/chroma:latest
     ports:
-      - "8001:8000"
+      - "7753:8000"
     volumes:
       - chroma_data:/chroma/chroma
 
   runner:
-    build: ./runner
+    build:
+      context: ./backend
+      dockerfile: docker/Dockerfile.runner
     profiles:
       - runner
     volumes:

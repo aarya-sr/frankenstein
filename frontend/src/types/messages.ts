@@ -55,6 +55,11 @@ export interface ErrorMessage extends BaseMessage {
   payload: { stage: string; message: string; recoverable: boolean }
 }
 
+export interface ActivityMessage extends BaseMessage {
+  type: "status.activity"
+  payload: { agent: string; text: string }
+}
+
 export type ServerMessage =
   | ChatMessage
   | QuestionGroupMessage
@@ -63,3 +68,4 @@ export type ServerMessage =
   | ProgressMessage
   | CompleteMessage
   | ErrorMessage
+  | ActivityMessage

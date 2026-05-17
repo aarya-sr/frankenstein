@@ -2,6 +2,7 @@ import asyncio
 import io
 import json
 import logging
+import time
 import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -15,6 +16,7 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.models.messages import (
+    ActivityMessage,
     BaseMessage,
     ChatMessage,
     CheckpointMessage,
@@ -23,7 +25,15 @@ from app.models.messages import (
     QuestionGroupMessage,
     StageUpdateMessage,
 )
+from app.models.preview import (
+    PreviewRunCompleteMessage,
+    PreviewRunErrorMessage,
+    PreviewRunStartedMessage,
+    PreviewTraceLineMessage,
+)
 from app.pipeline.graph import compiled_graph
+from app.services.docker_streaming_service import DockerStreamingService
+from app.services.log_parser import parse_line, reset_parser_state
 from app.services.session_service import SessionService
 
 logging.basicConfig(
@@ -33,10 +43,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 session_service = SessionService()
+docker_streaming = DockerStreamingService()
 
 # In-memory pipeline run tracking (NFR16: no persistence)
 _pipeline_runs: dict[str, asyncio.Task] = {}
 _graph_locks: dict[str, asyncio.Lock] = {}
+_preview_queues: dict[str, asyncio.Queue] = {}
 
 
 def _get_graph_lock(session_id: str) -> asyncio.Lock:
@@ -118,6 +130,20 @@ async def send_message(ws: WebSocket, msg: BaseMessage) -> None:
         raise
 
 
+async def _send_activity(session_id: str, agent: str, text: str) -> None:
+    """Send an inline activity message to the chat WebSocket."""
+    session = session_service.get_session(session_id)
+    chat_ws = session.get("chat_ws") if session else None
+    if chat_ws:
+        try:
+            await send_message(chat_ws, ActivityMessage(
+                payload={"agent": agent, "text": text},
+                session_id=session_id,
+            ))
+        except Exception:
+            pass
+
+
 async def _run_post_approval(session_id: str, config: dict, graph_lock: asyncio.Lock) -> None:
     """Run builder→tester→learner in background after spec approval."""
     try:
@@ -130,12 +156,18 @@ async def _run_post_approval(session_id: str, config: dict, graph_lock: asyncio.
                 session_id=session_id,
             ))
 
+        # Activity feed: what agents are doing
+        await _send_activity(session_id, "builder", "Querying past blueprints from memory...")
+        await _send_activity(session_id, "builder", "Planning CrewAI project structure...")
+
+        build_start = time.time()
         async with graph_lock:
             await asyncio.to_thread(
                 compiled_graph.invoke,
                 Command(resume={"approved": True}),
                 config,
             )
+        build_time = round(time.time() - build_start, 1)
 
         # Re-fetch session in case WS reconnected
         session = session_service.get_session(session_id)
@@ -158,6 +190,7 @@ async def _run_post_approval(session_id: str, config: dict, graph_lock: asyncio.
             test_results = final_state.get("test_results")
             spec = final_state.get("spec")
             framework = code_bundle.framework if code_bundle else "unknown"
+            session_service.set_framework(session_id, framework)
             all_passed = test_results.all_passed if test_results else True
             summary = (
                 f"Your {framework} agent pipeline is ready for download."
@@ -176,6 +209,7 @@ async def _run_post_approval(session_id: str, config: dict, graph_lock: asyncio.
                     "test_passed": test_results.passed if test_results else 0,
                     "test_total": test_results.total if test_results else 0,
                     "file_count": len(code_bundle.files) if code_bundle else 0,
+                    "build_time_seconds": build_time,
                 },
                 session_id=session_id,
             ))
@@ -286,6 +320,10 @@ async def approve_checkpoint(session_id: str, body: ApproveRequest):
                 except Exception:
                     logger.warning("Failed to send pre-approval stage updates to %s", session_id)
 
+            # Activity feed for architect/critic
+            await _send_activity(session_id, "architect", "Querying past blueprints from memory...")
+            await _send_activity(session_id, "architect", "Designing agent architecture from requirements...")
+
             # Requirements approval: run synchronously through architect→critic→spec checkpoint
             async with graph_lock:
                 await asyncio.to_thread(
@@ -293,6 +331,8 @@ async def approve_checkpoint(session_id: str, body: ApproveRequest):
                     Command(resume={"approved": True}),
                     config,
                 )
+
+            await _send_activity(session_id, "critic", "Running adversarial review across 9 attack vectors...")
 
             # Mark architect done, critic done retroactively
             if status_ws:
@@ -373,6 +413,191 @@ async def download_agent(session_id: str):
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename=agent_{session_id[:8]}.zip"},
     )
+
+
+# ── Preview Endpoints ────────────────────────────────────────────────
+
+
+@app.get("/sessions/{session_id}/files")
+async def get_session_files(session_id: str):
+    """Return all generated files for a session as {files: {name: content}}."""
+    if not session_service.session_exists(session_id):
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session_dir = session_service.get_session_dir(session_id)
+    if not session_dir.exists() or not any(session_dir.iterdir()):
+        raise HTTPException(status_code=404, detail="No generated files found")
+
+    files: dict[str, str] = {}
+    for file_path in sorted(session_dir.rglob("*")):
+        if file_path.is_file():
+            rel = str(file_path.relative_to(session_dir))
+            try:
+                files[rel] = file_path.read_text(errors="replace")
+            except Exception:
+                files[rel] = "# [binary or unreadable file]"
+
+    return {"files": files}
+
+
+@app.post("/sessions/{session_id}/preview/run", status_code=202)
+async def start_preview_run(session_id: str):
+    """Launch a streaming Docker execution for preview."""
+    if not session_service.session_exists(session_id):
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not docker_streaming.available:
+        raise HTTPException(status_code=503, detail="Docker not available")
+
+    if not docker_streaming.image_exists():
+        raise HTTPException(status_code=503, detail="Runner image not built")
+
+    if session_service.is_preview_running(session_id):
+        raise HTTPException(status_code=409, detail="Preview already running")
+
+    session_dir = session_service.get_session_dir(session_id)
+    if not session_dir.exists() or not any(session_dir.iterdir()):
+        raise HTTPException(status_code=404, detail="No generated files found")
+
+    # Determine entry point and framework
+    entry_point = "main.py"
+    framework = "crewai"
+    session = session_service.get_session(session_id)
+    if session and session.get("framework"):
+        framework = session["framework"]
+
+    # Check for entry point
+    if not (session_dir / entry_point).exists():
+        # Try to find any .py file
+        py_files = list(session_dir.glob("*.py"))
+        if py_files:
+            entry_point = py_files[0].name
+        else:
+            raise HTTPException(status_code=404, detail="No Python entry point found")
+
+    # Set up queue and launch
+    queue: asyncio.Queue = asyncio.Queue()
+    _preview_queues[session_id] = queue
+    session_service.set_preview_running(session_id, True)
+
+    env = {}
+    if settings.openrouter_api_key:
+        env["OPENROUTER_API_KEY"] = settings.openrouter_api_key
+
+    async def _run():
+        try:
+            result = await docker_streaming.run_streaming(
+                session_dir=session_dir,
+                entry_point=entry_point,
+                env=env,
+                queue=queue,
+            )
+            # Store result for WS to pick up
+            await queue.put({"_result": result})
+        except Exception as e:
+            logger.error("[%s] Preview run error: %s", session_id, e, exc_info=True)
+            await queue.put({"_error": str(e)})
+        finally:
+            session_service.set_preview_running(session_id, False)
+
+    asyncio.create_task(_run())
+    return {"status": "started"}
+
+
+@app.websocket("/ws/preview/{session_id}")
+async def ws_preview(websocket: WebSocket, session_id: str):
+    """WebSocket for streaming preview execution output."""
+    await websocket.accept()
+
+    if not session_service.session_exists(session_id):
+        await websocket.close(code=4004, reason="unknown session")
+        return
+
+    session_service.set_preview_ws(session_id, websocket)
+
+    # Determine framework for log parsing
+    session = session_service.get_session(session_id)
+    framework = (session.get("framework") or "crewai") if session else "crewai"
+    reset_parser_state()
+
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            try:
+                data = json.loads(raw)
+            except (ValueError, TypeError):
+                continue
+
+            msg_type = data.get("type", "")
+
+            if msg_type == "preview.request_stream":
+                # Client ready to receive — read from queue
+                queue = _preview_queues.get(session_id)
+                if not queue:
+                    await websocket.send_json(
+                        PreviewRunErrorMessage(
+                            payload={"message": "No active run. Click Run first."},
+                            session_id=session_id,
+                        ).model_dump(mode="json")
+                    )
+                    continue
+
+                # Send run_started
+                await websocket.send_json(
+                    PreviewRunStartedMessage(
+                        payload={"container_id": "pending"},
+                        session_id=session_id,
+                    ).model_dump(mode="json")
+                )
+
+                # Stream lines from queue
+                while True:
+                    item = await queue.get()
+
+                    if item is None:
+                        # Sentinel — wait for result dict
+                        continue
+
+                    if isinstance(item, dict):
+                        if "_error" in item:
+                            await websocket.send_json(
+                                PreviewRunErrorMessage(
+                                    payload={"message": item["_error"]},
+                                    session_id=session_id,
+                                ).model_dump(mode="json")
+                            )
+                            break
+                        if "_result" in item:
+                            result = item["_result"]
+                            await websocket.send_json(
+                                PreviewRunCompleteMessage(
+                                    payload={
+                                        "exit_code": result.get("exit_code", -1),
+                                        "duration_ms": result.get("duration_ms", 0),
+                                        "output": result.get("output", "")[:5000],
+                                    },
+                                    session_id=session_id,
+                                ).model_dump(mode="json")
+                            )
+                            break
+                        continue
+
+                    # It's a log line string
+                    event = parse_line(item, framework)
+                    await websocket.send_json(
+                        PreviewTraceLineMessage(
+                            payload={"event": event.model_dump()},
+                            session_id=session_id,
+                        ).model_dump(mode="json")
+                    )
+
+                # Cleanup queue
+                _preview_queues.pop(session_id, None)
+
+    except WebSocketDisconnect:
+        logger.info("Preview WS disconnected: %s", session_id)
+    finally:
+        session_service.clear_preview_ws(session_id)
 
 
 # ── WebSocket Endpoints ─────────────────────────────────────────────

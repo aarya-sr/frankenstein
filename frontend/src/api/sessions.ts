@@ -22,6 +22,13 @@ export async function approveCheckpoint(
   return res.json()
 }
 
+export async function fetchAgentFiles(sessionId: string): Promise<Record<string, string>> {
+  const res = await fetch(`/api/sessions/${sessionId}/files`)
+  if (!res.ok) throw new Error(`Fetch files failed: ${res.status}`)
+  const body = await res.json()
+  return body.files
+}
+
 export async function downloadAgent(sessionId: string): Promise<void> {
   const res = await fetch(`/api/sessions/${sessionId}/download`)
   if (!res.ok) {

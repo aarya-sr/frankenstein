@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, type Dispatch } from "react"
 import type { ChatEntry } from "../types/pipeline"
+import type { Action } from "../context/pipelineReducer"
 import { SystemAvatar } from "./ChatMessage"
 
 interface Category {
@@ -12,7 +13,7 @@ interface Props {
   entry: ChatEntry
   sendMessage: (data: Record<string, unknown>) => void
   sessionId: string | null
-  dispatch: (action: { type: string; payload?: unknown }) => void
+  dispatch: Dispatch<Action>
 }
 
 interface FlatQuestion {
@@ -105,13 +106,30 @@ export function QuestionGroupCard({ entry, sendMessage, sessionId, dispatch }: P
       <div className="flex-1 bg-surface-elevated rounded-xl border border-border animate-[fadeUp_250ms_ease-out]">
         <div className="px-5 py-4">
           {/* Header */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h3 className="text-[15px] font-semibold text-text-primary">
               A few questions to get this right
             </h3>
             <span className="text-[11px] text-text-tertiary">
               Question {currentIdx + 1} of {total} &middot; Round {round}/{max_rounds}
             </span>
+          </div>
+
+          {/* Gap coverage indicators */}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {categories.map((cat) => {
+              const pct = Math.round(cat.confidence * 100)
+              const color = cat.confidence >= 0.8 ? "bg-green-500" : cat.confidence >= 0.5 ? "bg-amber-500" : "bg-red-500"
+              const bgColor = cat.confidence >= 0.8 ? "bg-green-500/10" : cat.confidence >= 0.5 ? "bg-amber-500/10" : "bg-red-500/10"
+              return (
+                <div key={cat.name} className={`flex items-center gap-1.5 px-2 py-1 rounded ${bgColor}`}>
+                  <span className="text-[10px] text-text-tertiary truncate max-w-[80px]">{cat.name}</span>
+                  <div className="w-8 h-1.5 bg-surface rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${color} transition-all duration-300`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {/* Progress bar */}

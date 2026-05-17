@@ -47,7 +47,7 @@ class RequirementsDoc(BaseModel):
 
 
 class CategoryAssessment(BaseModel):
-    name: Literal["Input/Output", "Process", "Data", "Edge Cases", "Quality Bar"]
+    name: Literal["Input/Output", "Process", "Data", "Edge Cases", "Quality Bar", "Sample Data"]
     confidence: float
     addressed_fields: list[str] = []
     missing_fields: list[str] = []
@@ -60,7 +60,7 @@ class GapAnalysisResult(BaseModel):
 
     def gaps(self, threshold: float = 0.7) -> list[CategoryAssessment]:
         """Return categories below threshold, in priority order."""
-        priority_order = ["Input/Output", "Process", "Data", "Edge Cases", "Quality Bar"]
+        priority_order = ["Input/Output", "Process", "Data", "Edge Cases", "Quality Bar", "Sample Data"]
         below = [c for c in self.categories if c.confidence < threshold]
         return sorted(below, key=lambda c: priority_order.index(c.name))
 

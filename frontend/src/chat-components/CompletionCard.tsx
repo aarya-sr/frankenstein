@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react"
-import { downloadAgent } from "../api/sessions"
+import { Link } from "react-router-dom"
+import { downloadAgent, fetchAgentFiles } from "../api/sessions"
+import { CodePreview } from "./CodePreview"
 
 interface Props {
   sessionId: string
@@ -10,6 +12,7 @@ interface Props {
   testPassed?: number
   testTotal?: number
   fileCount?: number
+  buildTimeSeconds?: number
 }
 
 export function CompletionCard({
@@ -21,8 +24,12 @@ export function CompletionCard({
   testPassed,
   testTotal,
   fileCount,
+  buildTimeSeconds,
 }: Props) {
   const [downloading, setDownloading] = useState(false)
+  const [showCode, setShowCode] = useState(false)
+  const [files, setFiles] = useState<Record<string, string> | null>(null)
+  const [loadingFiles, setLoadingFiles] = useState(false)
 
   const handleDownload = useCallback(async () => {
     setDownloading(true)
@@ -35,7 +42,25 @@ export function CompletionCard({
     }
   }, [sessionId])
 
-  const accentColor = allPassed ? "green" : "amber"
+  const handleToggleCode = useCallback(async () => {
+    if (showCode) {
+      setShowCode(false)
+      return
+    }
+    if (!files) {
+      setLoadingFiles(true)
+      try {
+        const result = await fetchAgentFiles(sessionId)
+        setFiles(result)
+      } catch (err) {
+        console.error("Failed to fetch files:", err)
+      } finally {
+        setLoadingFiles(false)
+      }
+    }
+    setShowCode(true)
+  }, [showCode, files, sessionId])
+
   const borderClass = allPassed ? "border-green-500/50" : "border-amber-500/50"
   const dotClass = allPassed ? "bg-green-500" : "bg-amber-500"
   const title = allPassed ? "Your agents are ready." : "Your agents are mostly ready."
@@ -78,6 +103,9 @@ export function CompletionCard({
           {fileCount !== undefined && (
             <SummaryRow label="Files" value={String(fileCount)} />
           )}
+          {buildTimeSeconds !== undefined && (
+            <SummaryRow label="Build time" value={`${buildTimeSeconds}s`} />
+          )}
         </div>
 
         {!allPassed && (
@@ -86,7 +114,7 @@ export function CompletionCard({
           </p>
         )}
 
-        <div className="animate-[fadeUp_200ms_ease-out_both]" style={{ animationDelay: "250ms" }}>
+        <div className="flex items-center gap-3 flex-wrap animate-[fadeUp_200ms_ease-out_both]" style={{ animationDelay: "250ms" }}>
           <button
             onClick={handleDownload}
             disabled={downloading}
@@ -94,7 +122,29 @@ export function CompletionCard({
           >
             {downloading ? "Downloading..." : "Download Agent Project"}
           </button>
+          <button
+            onClick={handleToggleCode}
+            disabled={loadingFiles}
+            className="bg-surface border border-border text-text-primary font-medium px-4 py-2.5 rounded-lg min-h-[44px] text-[13px] hover:bg-surface-elevated transition-colors disabled:opacity-60"
+          >
+            {loadingFiles ? "Loading..." : showCode ? "Hide Code" : "View Generated Code"}
+          </button>
+          <Link
+            to={`/preview/${sessionId}`}
+            className="bg-surface border border-border text-text-primary font-semibold px-5 py-2.5 rounded-lg min-h-[44px] transition-colors hover:bg-surface-elevated hover:border-accent/50 flex items-center gap-2 text-[14px]"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M2 3h10M2 7h10M2 11h6" strokeLinecap="round" />
+            </svg>
+            Preview &amp; Run
+          </Link>
         </div>
+
+        {showCode && files && (
+          <div className="mt-4 animate-[fadeUp_200ms_ease-out]">
+            <CodePreview files={files} />
+          </div>
+        )}
       </div>
     </div>
   )

@@ -113,6 +113,19 @@ export function useWebSocket(sessionId: string | null) {
             payload: msg.payload as { stage: string; message: string; recoverable: boolean },
           })
           break
+
+        case "status.activity":
+          dispatch({
+            type: "CHAT_MESSAGE",
+            payload: {
+              id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              variant: "system",
+              type: "activity",
+              payload: msg.payload,
+              timestamp: msg.timestamp,
+            },
+          })
+          break
       }
     }
 
