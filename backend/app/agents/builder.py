@@ -62,6 +62,9 @@ _SHARED_RULES = """\
 8. README.md MUST cover prerequisites, env (OPENROUTER_API_KEY), install,
    run command, expected input/output shape.
 
+9. CrewAI Crew() MUST use `memory=False`. OpenRouter does not support the
+   embeddings API that CrewAI memory requires. Setting memory=True will crash.
+
 ## Output format
 Return ONE JSON object: {"filename": "<full file content>", ...}.
 Do NOT wrap content in code fences. Do NOT add commentary outside the JSON.
