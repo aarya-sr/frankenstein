@@ -127,6 +127,7 @@ export function TypewriterHeadline() {
           gap: 0.25em;
           line-height: 1;
           min-height: 1.2em;
+          text-shadow: 0 2px 20px rgba(0,0,0,0.8), 0 0 40px rgba(0,0,0,0.5);
         }
         .headline-word {
           display: inline-block;
@@ -172,6 +173,7 @@ export function TypewriterHeadline() {
         }
         .headline-subtitle {
           margin-top: 1.5rem;
+          text-shadow: 0 1px 10px rgba(0,0,0,0.6);
         }
       `}</style>
     </div>

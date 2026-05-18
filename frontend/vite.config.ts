@@ -12,7 +12,15 @@ export default defineConfig({
         target: 'http://localhost:7749',
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
-      '/ws': {
+      '/ws/chat': {
+        target: 'ws://localhost:7749',
+        ws: true,
+      },
+      '/ws/status': {
+        target: 'ws://localhost:7749',
+        ws: true,
+      },
+      '/ws/preview': {
         target: 'ws://localhost:7749',
         ws: true,
       },

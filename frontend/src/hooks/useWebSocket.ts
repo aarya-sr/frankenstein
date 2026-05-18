@@ -27,6 +27,7 @@ export function useWebSocket(sessionId: string | null) {
       pendingRef.current = []
     }
     chatWs.onclose = () => dispatch({ type: "SET_CONNECTED", payload: false })
+    chatWs.onerror = () => console.warn("Chat WS error:", sessionId)
 
     chatWs.onmessage = (event) => {
       const msg: ServerMessage = JSON.parse(event.data)

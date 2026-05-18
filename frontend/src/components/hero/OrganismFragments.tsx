@@ -18,17 +18,17 @@ const FRAGMENT_FRAG = `
     color += uColor * fresnel * 0.3;
     float pulse = sin(uTime * 1.5 + vUv.x * 3.14) * 0.1 + 0.9;
     color *= pulse;
-    gl_FragColor = vec4(color, 0.75);
+    gl_FragColor = vec4(color, 0.5);
   }
 `
 
 const AGENTS = [
-  { name: 'ELICITOR', position: [-2.2, 0.9, 0] as [number, number, number], color: '#22aa10' },
-  { name: 'ARCHITECT', position: [0, 1.1, 0] as [number, number, number], color: '#22aa10' },
-  { name: 'CRITIC', position: [2.2, 0.9, 0] as [number, number, number], color: '#8b0000' },
-  { name: 'BUILDER', position: [-2.2, -0.9, 0] as [number, number, number], color: '#22aa10' },
-  { name: 'TESTER', position: [0, -1.1, 0] as [number, number, number], color: '#cc8833' },
-  { name: 'LEARNER', position: [2.2, -0.9, 0] as [number, number, number], color: '#22aa10' },
+  { name: 'ELICITOR', position: [-3.4, 1.4, -1.5] as [number, number, number], color: '#22aa10' },
+  { name: 'ARCHITECT', position: [-1.2, 2.4, -2.0] as [number, number, number], color: '#22aa10' },
+  { name: 'CRITIC', position: [3.4, 1.4, -1.5] as [number, number, number], color: '#8b0000' },
+  { name: 'BUILDER', position: [-3.4, -1.4, -1.5] as [number, number, number], color: '#22aa10' },
+  { name: 'TESTER', position: [1.2, -2.4, -2.0] as [number, number, number], color: '#cc8833' },
+  { name: 'LEARNER', position: [3.4, -1.4, -1.5] as [number, number, number], color: '#22aa10' },
 ]
 
 const TRAIL_LEN = 20
@@ -104,13 +104,13 @@ function OrganismFragment({
 
     if (assemblyPhase === 'idle' || assemblyPhase === 'orbiting') {
       groupRef.current.position.x =
-        basePosition[0] + Math.sin(t * 0.4 + index * 1.047) * 0.15
+        basePosition[0] + Math.sin(t * 0.3 + index * 1.047) * 0.1
       groupRef.current.position.y =
-        basePosition[1] + Math.cos(t * 0.35 + index * 0.8) * 0.1
+        basePosition[1] + Math.cos(t * 0.25 + index * 0.8) * 0.08
       groupRef.current.position.z =
-        basePosition[2] + Math.sin(t * 0.25 + index * 0.5) * 0.08
-      meshRef.current.rotation.x = Math.sin(t * 0.15 + index) * 0.08
-      meshRef.current.rotation.y = t * 0.1 + index
+        basePosition[2] + Math.sin(t * 0.2 + index * 0.5) * 0.05
+      meshRef.current.rotation.x = Math.sin(t * 0.1 + index) * 0.05
+      meshRef.current.rotation.y = t * 0.06 + index
       mat.uniforms.uGlow.value = 0.3
       mat.uniforms.uColor.value.copy(originalColor)
       groupRef.current.scale.setScalar(1)
@@ -168,12 +168,12 @@ function OrganismFragment({
   })
 
   const geometries: Record<string, React.JSX.Element> = {
-    ELICITOR: <sphereGeometry args={[0.22, 24, 24]} />,
-    ARCHITECT: <boxGeometry args={[0.35, 0.35, 0.35]} />,
-    CRITIC: <octahedronGeometry args={[0.22]} />,
-    BUILDER: <cylinderGeometry args={[0.18, 0.22, 0.35, 6]} />,
-    TESTER: <dodecahedronGeometry args={[0.2]} />,
-    LEARNER: <icosahedronGeometry args={[0.2]} />,
+    ELICITOR: <sphereGeometry args={[0.16, 24, 24]} />,
+    ARCHITECT: <boxGeometry args={[0.26, 0.26, 0.26]} />,
+    CRITIC: <octahedronGeometry args={[0.16]} />,
+    BUILDER: <cylinderGeometry args={[0.13, 0.16, 0.26, 6]} />,
+    TESTER: <dodecahedronGeometry args={[0.15]} />,
+    LEARNER: <icosahedronGeometry args={[0.15]} />,
   }
 
   const showLabel = assemblyPhase === 'idle' || assemblyPhase === 'orbiting'
@@ -211,13 +211,13 @@ function OrganismFragment({
         </mesh>
         {showLabel && (
           <Text
-            position={[0, -0.4, 0]}
-            fontSize={0.09}
-            font="https://fonts.gstatic.com/s/ibmplexmono/v19/-F63fjptAgt5VM-kVkqdyU8n5ig.woff2"
+            position={[0, -0.3, 0]}
+            fontSize={0.065}
             color="#39ff14"
             anchorX="center"
             anchorY="top"
             letterSpacing={0.15}
+            fillOpacity={0.5}
           >
             {name}
           </Text>
@@ -228,7 +228,7 @@ function OrganismFragment({
 }
 
 // Sparse depth particles — float through the scene for atmosphere
-const DEPTH_COUNT = 40
+const DEPTH_COUNT = 20
 
 function DepthParticles() {
   const ref = useRef<THREE.Points>(null)
@@ -236,9 +236,9 @@ function DepthParticles() {
   const positions = useMemo(() => {
     const pos = new Float32Array(DEPTH_COUNT * 3)
     for (let i = 0; i < DEPTH_COUNT; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 8
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 5
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 6 - 1
+      pos[i * 3] = (Math.random() - 0.5) * 10
+      pos[i * 3 + 1] = (Math.random() - 0.5) * 6
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 4 - 3
     }
     return pos
   }, [])

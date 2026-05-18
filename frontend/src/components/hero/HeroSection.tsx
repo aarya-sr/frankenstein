@@ -114,9 +114,9 @@ export function HeroSection() {
             <EnergyConnections />
             <EffectComposer>
               <Bloom
-                luminanceThreshold={0.2}
+                luminanceThreshold={0.4}
                 luminanceSmoothing={0.9}
-                intensity={0.8}
+                intensity={0.4}
                 mipmapBlur
               />
             </EffectComposer>
@@ -239,10 +239,10 @@ export function HeroSection() {
           flex-direction: column;
           align-items: center;
           gap: 2.5rem;
-          padding: 2rem;
+          padding: 3rem 2.5rem;
           max-width: 700px;
           width: 100%;
-          background: radial-gradient(ellipse at center, rgba(10,13,8,0.75) 0%, transparent 70%);
+          background: radial-gradient(ellipse at center, rgba(10,13,8,0.92) 0%, rgba(10,13,8,0.8) 50%, transparent 80%);
           border-radius: 24px;
         }
 
@@ -282,6 +282,7 @@ export function HeroSection() {
           letter-spacing: 0.15em;
           color: var(--formaldehyde);
           text-transform: uppercase;
+          text-shadow: 0 0 8px rgba(57,255,20,0.3);
         }
         .prompt-input-wrapper {
           display: flex;

@@ -106,6 +106,9 @@ export function ChatThread({ sendMessage }: { sendMessage: (data: Record<string,
     }
   }, [messages, dispatch, sendMessage, sessionId])
 
+  // Extract original prompt from first user message
+  const originalPrompt = messages.find(m => m.variant === "user")?.payload?.text as string | undefined
+
   // Track if PhaseDividers were already rendered (deduplication)
   let requirementsDividerShown = false
   let specDividerShown = false
@@ -165,6 +168,7 @@ export function ChatThread({ sendMessage }: { sendMessage: (data: Record<string,
                   sendMessage={sendMessage}
                   sessionId={sessionId}
                   dispatch={dispatch}
+                  originalPrompt={originalPrompt ?? ""}
                 />
               </div>
             )

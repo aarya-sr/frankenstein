@@ -29,6 +29,21 @@ export async function fetchAgentFiles(sessionId: string): Promise<Record<string,
   return body.files
 }
 
+export async function aiAssist(
+  sessionId: string,
+  prompt: string,
+  questions: string[]
+): Promise<string[]> {
+  const res = await fetch(`/api/sessions/${sessionId}/ai-assist`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, questions }),
+  })
+  if (!res.ok) throw new Error(`AI assist failed: ${res.status}`)
+  const body = await res.json()
+  return body.answers
+}
+
 export async function downloadAgent(sessionId: string): Promise<void> {
   const res = await fetch(`/api/sessions/${sessionId}/download`)
   if (!res.ok) {

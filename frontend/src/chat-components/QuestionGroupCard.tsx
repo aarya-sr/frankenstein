@@ -2,6 +2,7 @@ import { useState, useCallback, type Dispatch } from "react"
 import type { ChatEntry } from "../types/pipeline"
 import type { Action } from "../context/pipelineReducer"
 import { SystemAvatar } from "./ChatMessage"
+import { aiAssist } from "../api/sessions"
 
 interface Category {
   name: string
@@ -14,6 +15,7 @@ interface Props {
   sendMessage: (data: Record<string, unknown>) => void
   sessionId: string | null
   dispatch: Dispatch<Action>
+  originalPrompt: string
 }
 
 interface FlatQuestion {
@@ -21,7 +23,7 @@ interface FlatQuestion {
   question: string
 }
 
-export function QuestionGroupCard({ entry, sendMessage, sessionId, dispatch }: Props) {
+export function QuestionGroupCard({ entry, sendMessage, sessionId, dispatch, originalPrompt }: Props) {
   const payload = entry.payload as { categories: Category[]; round: number; max_rounds: number }
   const { categories, round, max_rounds } = payload
 
@@ -36,6 +38,7 @@ export function QuestionGroupCard({ entry, sendMessage, sessionId, dispatch }: P
   const [currentIdx, setCurrentIdx] = useState(0)
   const [answers, setAnswers] = useState<string[]>(() => flatQuestions.map(() => ""))
   const [submitted, setSubmitted] = useState(false)
+  const [aiLoading, setAiLoading] = useState<"single" | "all" | null>(null)
 
   const total = flatQuestions.length
   const current = flatQuestions[currentIdx]
@@ -50,6 +53,45 @@ export function QuestionGroupCard({ entry, sendMessage, sessionId, dispatch }: P
     },
     [currentIdx]
   )
+
+  const handleAiAssistSingle = useCallback(async () => {
+    if (!sessionId || aiLoading) return
+    setAiLoading("single")
+    try {
+      const result = await aiAssist(sessionId, originalPrompt, [current.question])
+      if (result[0]) {
+        setAnswers((prev) => {
+          const next = [...prev]
+          next[currentIdx] = result[0]
+          return next
+        })
+      }
+    } catch (err) {
+      console.error("AI assist single failed:", err)
+    } finally {
+      setAiLoading(null)
+    }
+  }, [sessionId, aiLoading, originalPrompt, current?.question, currentIdx])
+
+  const handleAiAssistAll = useCallback(async () => {
+    if (!sessionId || aiLoading) return
+    setAiLoading("all")
+    try {
+      const allQuestions = flatQuestions.map((fq) => fq.question)
+      const result = await aiAssist(sessionId, originalPrompt, allQuestions)
+      setAnswers((prev) => {
+        const next = [...prev]
+        for (let i = 0; i < result.length; i++) {
+          if (result[i]) next[i] = result[i]
+        }
+        return next
+      })
+    } catch (err) {
+      console.error("AI assist all failed:", err)
+    } finally {
+      setAiLoading(null)
+    }
+  }, [sessionId, aiLoading, originalPrompt, flatQuestions])
 
   const handleSubmit = useCallback(() => {
     if (!sessionId || submitted) return
@@ -157,43 +199,88 @@ export function QuestionGroupCard({ entry, sendMessage, sessionId, dispatch }: P
               </div>
 
               {/* Answer textarea */}
-              <textarea
-                value={answers[currentIdx]}
-                onChange={(e) => handleAnswerChange(e.target.value)}
-                placeholder="Your answer..."
-                rows={3}
-                className="w-full resize-none bg-surface border border-border rounded-lg px-4 py-3 text-[14px] text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-amber-500"
-                autoFocus
-              />
+              <div className="relative">
+                <textarea
+                  value={answers[currentIdx]}
+                  onChange={(e) => handleAnswerChange(e.target.value)}
+                  placeholder="Your answer..."
+                  rows={3}
+                  className="w-full resize-none bg-surface border border-border rounded-lg px-4 py-3 text-[14px] text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  autoFocus
+                  disabled={aiLoading === "single"}
+                />
+                {/* AI assist single question button */}
+                <button
+                  onClick={handleAiAssistSingle}
+                  disabled={!!aiLoading}
+                  title="AI suggest answer"
+                  className="absolute top-2 right-2 p-1.5 rounded-md text-text-tertiary hover:text-amber-500 hover:bg-amber-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  {aiLoading === "single" ? (
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 16 16" fill="none">
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="28" strokeDashoffset="8" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5L8 1z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Navigation */}
+          {/* Navigation + AI Assist All */}
           <div className="mt-4 flex items-center justify-between">
             <button
               onClick={() => setCurrentIdx((i) => i - 1)}
               disabled={isFirst}
               className="text-[13px] text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-3 py-2"
             >
-              ← Back
+              &larr; Back
             </button>
 
-            {isLast ? (
+            <div className="flex items-center gap-2">
+              {/* Answer All with AI */}
               <button
-                onClick={handleSubmit}
-                disabled={!allAnswered}
-                className="bg-amber-500 text-neutral-900 font-semibold px-5 py-2.5 rounded-lg min-h-[44px] transition-all duration-100 active:scale-[0.97] hover:bg-amber-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                onClick={handleAiAssistAll}
+                disabled={!!aiLoading}
+                className="flex items-center gap-1.5 text-[12px] text-amber-500 hover:text-amber-400 border border-amber-500/30 hover:border-amber-500/60 px-3 py-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                Submit Answers
+                {aiLoading === "all" ? (
+                  <>
+                    <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 16 16" fill="none">
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="28" strokeDashoffset="8" strokeLinecap="round" />
+                    </svg>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5L8 1z" />
+                    </svg>
+                    AI Answer All
+                  </>
+                )}
               </button>
-            ) : (
-              <button
-                onClick={() => setCurrentIdx((i) => i + 1)}
-                className="text-[13px] text-text-primary hover:text-amber-500 transition-colors px-3 py-2"
-              >
-                Next →
-              </button>
-            )}
+
+              {isLast ? (
+                <button
+                  onClick={handleSubmit}
+                  disabled={!allAnswered}
+                  className="bg-amber-500 text-neutral-900 font-semibold px-5 py-2.5 rounded-lg min-h-[44px] transition-all duration-100 active:scale-[0.97] hover:bg-amber-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Submit Answers
+                </button>
+              ) : (
+                <button
+                  onClick={() => setCurrentIdx((i) => i + 1)}
+                  className="text-[13px] text-text-primary hover:text-amber-500 transition-colors px-3 py-2"
+                >
+                  Next &rarr;
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

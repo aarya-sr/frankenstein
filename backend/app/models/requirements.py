@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Literal
+import json
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class DataSpec(BaseModel):
@@ -10,6 +11,15 @@ class DataSpec(BaseModel):
     format: str
     description: str
     example: str | None = None
+
+    @field_validator("example", mode="before")
+    @classmethod
+    def coerce_example(cls, v: Any) -> str | None:
+        if v is None:
+            return None
+        if isinstance(v, str):
+            return v
+        return json.dumps(v)
 
 
 class ProcessStep(BaseModel):

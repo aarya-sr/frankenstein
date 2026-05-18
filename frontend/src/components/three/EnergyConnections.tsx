@@ -8,12 +8,12 @@ const EDGES: [number, number][] = [
 ]
 
 const AGENT_POSITIONS: [number, number, number][] = [
-  [-2.2, 0.9, 0],
-  [0, 1.1, 0],
-  [2.2, 0.9, 0],
-  [-2.2, -0.9, 0],
-  [0, -1.1, 0],
-  [2.2, -0.9, 0],
+  [-3.4, 1.4, -1.5],
+  [-1.2, 2.4, -2.0],
+  [3.4, 1.4, -1.5],
+  [-3.4, -1.4, -1.5],
+  [1.2, -2.4, -2.0],
+  [3.4, -1.4, -1.5],
 ]
 
 const POINTS_PER_EDGE = 30
@@ -42,7 +42,7 @@ export function EnergyConnections() {
       const lineMat = new THREE.LineBasicMaterial({
         color: 0x39ff14,
         transparent: true,
-        opacity: 0.12,
+        opacity: 0.06,
         blending: THREE.AdditiveBlending,
       })
       const line = new THREE.Line(lineGeo, lineMat)
@@ -54,9 +54,9 @@ export function EnergyConnections() {
 
       const pulseMat = new THREE.PointsMaterial({
         color: 0x39ff14,
-        size: 0.08,
+        size: 0.05,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.5,
         blending: THREE.AdditiveBlending,
         sizeAttenuation: true,
       })

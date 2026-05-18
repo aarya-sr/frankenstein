@@ -71,6 +71,15 @@ class ApproveResponse(BaseModel):
     status: Literal["resumed", "revision_requested"]
 
 
+class AiAssistRequest(BaseModel):
+    prompt: str
+    questions: list[str]
+
+
+class AiAssistResponse(BaseModel):
+    answers: list[str]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.services.chroma_service import ChromaService
@@ -413,6 +422,58 @@ async def download_agent(session_id: str):
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename=agent_{session_id[:8]}.zip"},
     )
+
+
+AI_ASSIST_SYSTEM = """\
+You are a knowledgeable domain expert helping a user answer questions about building \
+an AI agent pipeline. The user originally described their project as follows:
+
+"{prompt}"
+
+You are now answering specific clarifying questions on their behalf. Respond as if you \
+are the domain expert who wrote the original prompt. Give specific, concrete answers \
+with realistic values — not generic placeholders. Keep each answer to 2-4 sentences.
+
+Respond ONLY with valid JSON:
+{{
+  "answers": ["<answer to question 1>", "<answer to question 2>", ...]
+}}"""
+
+
+@app.post("/sessions/{session_id}/ai-assist", response_model=AiAssistResponse)
+async def ai_assist(session_id: str, body: AiAssistRequest):
+    """Use AI to generate suggested answers for elicitor questions."""
+    if not session_service.session_exists(session_id):
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    from app.services.llm_service import LLMService
+    import json as _json
+
+    llm = LLMService()
+    system = AI_ASSIST_SYSTEM.format(prompt=body.prompt)
+    questions_text = "\n".join(
+        f"{i + 1}. {q}" for i, q in enumerate(body.questions)
+    )
+    user_msg = f"Answer these questions:\n\n{questions_text}"
+
+    try:
+        raw = await asyncio.to_thread(
+            llm.call,
+            "elicitor",
+            system,
+            user_msg,
+            json_mode=True,
+        )
+        data = _json.loads(raw)
+        answers = data.get("answers", [])
+        # Pad or trim to match question count
+        while len(answers) < len(body.questions):
+            answers.append("")
+        answers = answers[: len(body.questions)]
+        return AiAssistResponse(answers=answers)
+    except Exception as e:
+        logger.error("[%s] AI assist error: %s", session_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"AI assist failed: {e}")
 
 
 # ── Preview Endpoints ────────────────────────────────────────────────
