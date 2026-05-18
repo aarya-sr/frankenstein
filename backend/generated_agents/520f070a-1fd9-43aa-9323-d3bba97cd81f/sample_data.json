@@ -1,0 +1,4 @@
+{
+  "bank_statements": "path/to/bank_statement.pdf",
+  "credit_reports": "path/to/credit_report.pdf"
+}

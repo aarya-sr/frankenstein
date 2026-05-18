@@ -1,0 +1,38 @@
+{
+  "bank_statements": {
+    "transactions": [
+      {
+        "transaction_date": "2023-01-01",
+        "transaction_description": "Deposit",
+        "transaction_amount": 1000.0,
+        "account_balance": 5000.0,
+        "account_type": "Checking"
+      },
+      {
+        "transaction_date": "2023-01-15",
+        "transaction_description": "Mortgage Payment",
+        "transaction_amount": -1200.0,
+        "account_balance": 3800.0,
+        "account_type": "Checking"
+      }
+    ]
+  },
+  "credit_reports": {
+    "credit_accounts": [
+      {
+        "account_name": "Visa",
+        "payment_history": "On-time",
+        "credit_limit": 5000,
+        "current_balance": 1500,
+        "credit_score": 720
+      },
+      {
+        "account_name": "Mortgage",
+        "payment_history": "On-time",
+        "credit_limit": 250000,
+        "current_balance": 200000,
+        "credit_score": 720
+      }
+    ]
+  }
+}

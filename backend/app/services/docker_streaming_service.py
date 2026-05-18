@@ -25,7 +25,7 @@ class DockerStreamingService:
     """Streams container output line-by-line via asyncio.Queue."""
 
     def __init__(self, timeout: int | None = None):
-        self._timeout = timeout or (settings.docker_timeout * 2)
+        self._timeout = timeout or max(settings.docker_timeout * 2, 600)
         self._client = None
         self._available = False
         self._connect()
@@ -95,6 +95,7 @@ class DockerStreamingService:
                 detach=True,
                 mem_limit="512m",
                 network_disabled=False,
+                user="root",
             )
 
             container_id = container.id

@@ -1,0 +1,6 @@
+{
+  "bank_statements": "{\"account_holder_name\": \"John Doe\", \"account_number\": \"123456789\", \"transaction_date\": \"2023-01-01\", \"transaction_description\": \"Deposit\", \"transaction_amount\": 1000.0, \"balance\": 5000.0, \"monthly_income\": 3000.0}",
+  "credit_reports": "{\"applicant_name\": \"John Doe\", \"credit_accounts\": [{\"account_type\": \"Credit Card\", \"balance\": 2000.0, \"credit_limit\": 5000.0, \"payment_status\": \"On Time\"}], \"inquiries\": [{\"date\": \"2023-01-01\", \"type\": \"Hard Inquiry\"}], \"credit_score\": 720}",
+  "loan_amount": 250000.0,
+  "property_value": 312500.0
+}

@@ -72,6 +72,7 @@ class StreamlitService:
             "OPENROUTER_API_KEY": settings.openrouter_api_key,
             "OPENAI_BASE_URL": "https://openrouter.ai/api/v1",
             "OPENAI_MODEL_NAME": settings.tester_test_model,
+            "CREWAI_TRACING_ENABLED": "false",
             **(env or {}),
         }
 
@@ -89,13 +90,14 @@ class StreamlitService:
             image=RUNNER_IMAGE,
             entrypoint=["sh", "-c"],
             command=[cmd],
-            volumes={str(session_dir): {"bind": "/agent", "mode": "ro"}},
+            volumes={str(session_dir): {"bind": "/agent", "mode": "rw"}},
             working_dir="/agent",
             environment=container_env,
             detach=True,
             mem_limit="512m",
             ports={"8501/tcp": port},
             network_disabled=False,
+            user="root",
         )
 
         self._containers[session_id] = {

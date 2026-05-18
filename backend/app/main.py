@@ -783,7 +783,7 @@ async def start_preview_run(session_id: str):
     _preview_queues[session_id] = queue
     session_service.set_preview_running(session_id, True)
 
-    env = {}
+    env = {"CREWAI_TRACING_ENABLED": "false"}
     if settings.openrouter_api_key:
         env["OPENROUTER_API_KEY"] = settings.openrouter_api_key
 

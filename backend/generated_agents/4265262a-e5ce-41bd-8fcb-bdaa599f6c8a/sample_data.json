@@ -1,0 +1,36 @@
+{
+  "bank_statements": {
+    "transactions": [
+      {
+        "date": "2023-01-01",
+        "description": "Deposit",
+        "amount": 1000
+      },
+      {
+        "date": "2023-01-02",
+        "description": "Withdrawal",
+        "amount": -200
+      }
+    ],
+    "balance": 800,
+    "month": "January 2023"
+  },
+  "credit_report": {
+    "accounts": [
+      {
+        "account_name": "Visa",
+        "balance": 500,
+        "payment_history": "On-time"
+      },
+      {
+        "account_name": "MasterCard",
+        "balance": 300,
+        "payment_history": "Late"
+      }
+    ],
+    "credit_score": 720
+  },
+  "loan_amount": 250000,
+  "property_value": 312500,
+  "applicant_name": "John Doe"
+}

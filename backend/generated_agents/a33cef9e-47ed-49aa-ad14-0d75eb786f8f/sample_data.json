@@ -1,0 +1,5 @@
+{
+  "bank_statements": "bank_statement.pdf",
+  "credit_reports": "credit_report.pdf",
+  "structured_financial_data": "financial_data.csv"
+}

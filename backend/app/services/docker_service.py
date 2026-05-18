@@ -131,6 +131,7 @@ class DockerService:
                 detach=True,
                 mem_limit="512m",
                 network_disabled=network_disabled,
+                user="root",
             )
 
             # Wait with timeout
