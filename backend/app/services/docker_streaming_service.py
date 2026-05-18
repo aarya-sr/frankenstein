@@ -87,7 +87,8 @@ class DockerStreamingService:
         try:
             container = self._client.containers.run(
                 image=RUNNER_IMAGE,
-                command=["sh", "-c", cmd],
+                entrypoint=["sh", "-c"],
+                command=[cmd],
                 volumes={str(session_dir): {"bind": "/agent", "mode": "rw"}},
                 working_dir="/agent",
                 environment=container_env,

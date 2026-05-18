@@ -87,7 +87,8 @@ class StreamlitService:
 
         container = self._client.containers.run(
             image=RUNNER_IMAGE,
-            command=["sh", "-c", cmd],
+            entrypoint=["sh", "-c"],
+            command=[cmd],
             volumes={str(session_dir): {"bind": "/agent", "mode": "ro"}},
             working_dir="/agent",
             environment=container_env,
