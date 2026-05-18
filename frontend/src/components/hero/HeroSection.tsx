@@ -4,10 +4,8 @@ import { Canvas } from '@react-three/fiber'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TypewriterHeadline } from './TypewriterHeadline'
-import { OrganismFragments } from './OrganismFragments'
 import { AssemblyAnimation } from './AssemblyAnimation'
-import { LaboratoryVoid } from './LaboratoryVoid'
-import { EnergyConnections } from '../three/EnergyConnections'
+import { WireframeHeart } from '../three/WireframeHeart'
 import { useAssemblyTrigger } from '../../hooks/useAssemblyTrigger'
 import { useLabStore } from '../../store/labState'
 import { useAudio } from '../../hooks/useAudio'
@@ -102,21 +100,20 @@ export function HeroSection() {
           gl={{ antialias: true, alpha: true }}
         >
           <Suspense fallback={null}>
-            <LaboratoryVoid />
-            <ambientLight intensity={0.15} />
+            {/* LaboratoryVoid removed — clean dark background */}
+            <ambientLight intensity={0.08} />
             <pointLight
               position={[0, -3, 3]}
-              intensity={0.8}
+              intensity={0.3}
               color="#39ff14"
-              distance={12}
+              distance={10}
             />
-            <OrganismFragments />
-            <EnergyConnections />
+            <WireframeHeart />
             <EffectComposer>
               <Bloom
-                luminanceThreshold={0.4}
+                luminanceThreshold={0.6}
                 luminanceSmoothing={0.9}
-                intensity={0.4}
+                intensity={0.15}
                 mipmapBlur
               />
             </EffectComposer>
@@ -129,12 +126,12 @@ export function HeroSection() {
         <motion.path
           d="M 0 40 L 200 40 L 250 40 L 280 40 L 320 40 L 400 40 L 500 40 L 550 40 L 560 15 L 570 65 L 580 10 L 590 70 L 600 40 L 650 40 L 700 40 L 800 40 L 900 40 L 1000 40 L 1200 40"
           stroke="var(--formaldehyde)"
-          strokeWidth="2"
+          strokeWidth="3.5"
           fill="none"
-          opacity="0.15"
+          opacity="0.25"
           initial={{ pathLength: 0 }}
           animate={showContent ? { pathLength: 1 } : {}}
-          transition={{ duration: 2, delay: 0.5, ease: 'easeInOut' }}
+          transition={{ duration: 4, delay: 0.5, ease: 'easeInOut' }}
         />
       </svg>
 
@@ -242,7 +239,7 @@ export function HeroSection() {
           padding: 3rem 2.5rem;
           max-width: 700px;
           width: 100%;
-          background: radial-gradient(ellipse at center, rgba(10,13,8,0.92) 0%, rgba(10,13,8,0.8) 50%, transparent 80%);
+          background: none;
           border-radius: 24px;
         }
 

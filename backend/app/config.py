@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     # Pipeline constants
     max_spec_iterations: int = 3
-    max_build_iterations: int = 10
+    max_build_iterations: int = 3
     max_builder_repair_iterations: int = 2
     max_elicitor_rounds: int = 3
     completeness_threshold: float = 0.7
@@ -46,9 +46,9 @@ DOCKER_TIMEOUT = settings.docker_timeout
 # Architect + Critic deliberately use different families for cross-model adversarial review
 MODEL_ROUTING: dict[str, str] = {
     "elicitor": "openai/gpt-4o-mini",
-    "architect": "anthropic/claude-sonnet-4-5",
+    "architect": "anthropic/claude-opus-4-6",
     "critic": "openai/gpt-4o",
-    "builder": "openai/gpt-4o",
+    "builder": "anthropic/claude-opus-4-6",
     "tester": "openai/gpt-4o-mini",
     "learner": "openai/gpt-4o-mini",
 }

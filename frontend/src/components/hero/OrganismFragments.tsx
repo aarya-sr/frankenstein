@@ -18,17 +18,17 @@ const FRAGMENT_FRAG = `
     color += uColor * fresnel * 0.3;
     float pulse = sin(uTime * 1.5 + vUv.x * 3.14) * 0.1 + 0.9;
     color *= pulse;
-    gl_FragColor = vec4(color, 0.5);
+    gl_FragColor = vec4(color, 0.3);
   }
 `
 
 const AGENTS = [
-  { name: 'ELICITOR', position: [-3.4, 1.4, -1.5] as [number, number, number], color: '#22aa10' },
-  { name: 'ARCHITECT', position: [-1.2, 2.4, -2.0] as [number, number, number], color: '#22aa10' },
-  { name: 'CRITIC', position: [3.4, 1.4, -1.5] as [number, number, number], color: '#8b0000' },
-  { name: 'BUILDER', position: [-3.4, -1.4, -1.5] as [number, number, number], color: '#22aa10' },
-  { name: 'TESTER', position: [1.2, -2.4, -2.0] as [number, number, number], color: '#cc8833' },
-  { name: 'LEARNER', position: [3.4, -1.4, -1.5] as [number, number, number], color: '#22aa10' },
+  { name: 'ELICITOR', position: [-3.8, 1.6, -3.0] as [number, number, number], color: '#22aa10' },
+  { name: 'ARCHITECT', position: [-1.2, 2.8, -3.5] as [number, number, number], color: '#22aa10' },
+  { name: 'CRITIC', position: [3.8, 1.6, -3.0] as [number, number, number], color: '#8b0000' },
+  { name: 'BUILDER', position: [-3.8, -1.6, -3.0] as [number, number, number], color: '#22aa10' },
+  { name: 'TESTER', position: [1.2, -2.8, -3.5] as [number, number, number], color: '#cc8833' },
+  { name: 'LEARNER', position: [3.8, -1.6, -3.0] as [number, number, number], color: '#22aa10' },
 ]
 
 const TRAIL_LEN = 20
@@ -79,7 +79,7 @@ function OrganismFragment({
       uTime: { value: 0 },
       uIntensity: { value: 0.5 },
       uColor: { value: new THREE.Color(color) },
-      uGlow: { value: 0.3 },
+      uGlow: { value: 0.15 },
     }),
     [color]
   )
@@ -111,7 +111,7 @@ function OrganismFragment({
         basePosition[2] + Math.sin(t * 0.2 + index * 0.5) * 0.05
       meshRef.current.rotation.x = Math.sin(t * 0.1 + index) * 0.05
       meshRef.current.rotation.y = t * 0.06 + index
-      mat.uniforms.uGlow.value = 0.3
+      mat.uniforms.uGlow.value = 0.15
       mat.uniforms.uColor.value.copy(originalColor)
       groupRef.current.scale.setScalar(1)
 
@@ -168,12 +168,12 @@ function OrganismFragment({
   })
 
   const geometries: Record<string, React.JSX.Element> = {
-    ELICITOR: <sphereGeometry args={[0.16, 24, 24]} />,
-    ARCHITECT: <boxGeometry args={[0.26, 0.26, 0.26]} />,
-    CRITIC: <octahedronGeometry args={[0.16]} />,
-    BUILDER: <cylinderGeometry args={[0.13, 0.16, 0.26, 6]} />,
-    TESTER: <dodecahedronGeometry args={[0.15]} />,
-    LEARNER: <icosahedronGeometry args={[0.15]} />,
+    ELICITOR: <sphereGeometry args={[0.12, 24, 24]} />,
+    ARCHITECT: <boxGeometry args={[0.19, 0.19, 0.19]} />,
+    CRITIC: <octahedronGeometry args={[0.12]} />,
+    BUILDER: <cylinderGeometry args={[0.1, 0.12, 0.19, 6]} />,
+    TESTER: <dodecahedronGeometry args={[0.11]} />,
+    LEARNER: <icosahedronGeometry args={[0.11]} />,
   }
 
   const showLabel = assemblyPhase === 'idle' || assemblyPhase === 'orbiting'
@@ -211,84 +211,19 @@ function OrganismFragment({
         </mesh>
         {showLabel && (
           <Text
-            position={[0, -0.3, 0]}
-            fontSize={0.065}
+            position={[0, -0.22, 0]}
+            fontSize={0.05}
             color="#39ff14"
             anchorX="center"
             anchorY="top"
             letterSpacing={0.15}
-            fillOpacity={0.5}
+            fillOpacity={0.3}
           >
             {name}
           </Text>
         )}
       </group>
     </>
-  )
-}
-
-// Sparse depth particles — float through the scene for atmosphere
-const DEPTH_COUNT = 20
-
-function DepthParticles() {
-  const ref = useRef<THREE.Points>(null)
-
-  const positions = useMemo(() => {
-    const pos = new Float32Array(DEPTH_COUNT * 3)
-    for (let i = 0; i < DEPTH_COUNT; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 10
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 6
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 4 - 3
-    }
-    return pos
-  }, [])
-
-  useFrame((state) => {
-    if (!ref.current) return
-    const t = state.clock.elapsedTime
-    const mat = ref.current.material as THREE.ShaderMaterial
-    mat.uniforms.uTime.value = t
-    ref.current.rotation.y = t * 0.015
-    ref.current.rotation.x = Math.sin(t * 0.05) * 0.02
-  })
-
-  return (
-    <points ref={ref} frustumCulled={false}>
-      <bufferGeometry>
-        {/* @ts-expect-error R3F bufferAttribute typing mismatch */}
-        <bufferAttribute attach="attributes-position" count={DEPTH_COUNT} array={positions} itemSize={3} />
-      </bufferGeometry>
-      <shaderMaterial
-        transparent
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-        vertexShader={`
-          uniform float uTime;
-          varying float vDepth;
-          void main() {
-            vec3 pos = position;
-            pos.y += sin(uTime * 0.2 + position.x * 0.5) * 0.15;
-            pos.x += cos(uTime * 0.15 + position.z) * 0.1;
-            vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
-            vDepth = clamp(-mvPos.z / 8.0, 0.0, 1.0);
-            gl_PointSize = mix(1.5, 3.5, 1.0 - vDepth) * (200.0 / -mvPos.z);
-            gl_Position = projectionMatrix * mvPos;
-          }
-        `}
-        fragmentShader={`
-          varying float vDepth;
-          void main() {
-            float d = length(gl_PointCoord - 0.5);
-            if (d > 0.5) discard;
-            float soft = smoothstep(0.5, 0.0, d);
-            float alpha = soft * mix(0.2, 0.05, vDepth);
-            vec3 color = mix(vec3(0.22, 1.0, 0.08), vec3(0.72, 0.45, 0.2), vDepth);
-            gl_FragColor = vec4(color, alpha);
-          }
-        `}
-        uniforms={{ uTime: { value: 0 } }}
-      />
-    </points>
   )
 }
 
@@ -306,7 +241,6 @@ export function OrganismFragments() {
           index={i}
         />
       ))}
-      <DepthParticles />
     </group>
   )
 }

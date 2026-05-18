@@ -373,13 +373,8 @@ def validate_tool_coverage(files: dict[str, str], spec: Any) -> list[dict]:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             defined.add(node.name)
 
-    # Tool refs in spec
+    # Check agents.py for symbols imported from tools — these MUST exist
     referenced: set[str] = set()
-    for tool_ref in getattr(spec, "tools", []):
-        # Tool function names are derived from library_ref (snake_case id)
-        referenced.add(tool_ref.library_ref)
-
-    # Also check agents.py for symbols imported from tools
     agents_src = files.get("agents.py", "")
     if agents_src:
         agents_tree = _parse("agents.py", agents_src)
@@ -396,7 +391,7 @@ def validate_tool_coverage(files: dict[str, str], spec: Any) -> list[dict]:
                 _make(
                     "tools.py",
                     "TOOL_NOT_DEFINED",
-                    f"Tool '{name}' is referenced by an agent but not defined in tools.py",
+                    f"Tool '{name}' is imported in agents.py but not defined in tools.py",
                     fix=f"Add a `def {name}(data: dict) -> dict:` implementation in tools.py.",
                 )
             )
