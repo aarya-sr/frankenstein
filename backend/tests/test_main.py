@@ -38,11 +38,11 @@ def test_cors_headers():
         resp = client.options(
             "/health",
             headers={
-                "Origin": "http://localhost:5173",
+                "Origin": "http://localhost:7751",
                 "Access-Control-Request-Method": "GET",
             },
         )
-        assert resp.headers.get("access-control-allow-origin") == "http://localhost:5173"
+        assert resp.headers.get("access-control-allow-origin") == "http://localhost:7751"
 
 
 # ── WebSocket Tests ──────────────────────────────────────────────────

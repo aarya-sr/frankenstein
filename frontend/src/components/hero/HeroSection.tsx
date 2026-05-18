@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TypewriterHeadline } from './TypewriterHeadline'
 import { OrganismFragments } from './OrganismFragments'
 import { AssemblyAnimation } from './AssemblyAnimation'
 import { LaboratoryVoid } from './LaboratoryVoid'
+import { EnergyConnections } from '../three/EnergyConnections'
 import { useAssemblyTrigger } from '../../hooks/useAssemblyTrigger'
 import { useLabStore } from '../../store/labState'
 import { useAudio } from '../../hooks/useAudio'
@@ -109,6 +111,15 @@ export function HeroSection() {
               distance={12}
             />
             <OrganismFragments />
+            <EnergyConnections />
+            <EffectComposer>
+              <Bloom
+                luminanceThreshold={0.2}
+                luminanceSmoothing={0.9}
+                intensity={0.8}
+                mipmapBlur
+              />
+            </EffectComposer>
           </Suspense>
         </Canvas>
       </div>

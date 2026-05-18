@@ -31,6 +31,9 @@ class SessionService:
                 "stage": "idle",
                 "chat_ws": None,
                 "status_ws": None,
+                "preview_ws": None,
+                "framework": None,
+                "preview_running": False,
             }
         logger.info("Session created: %s", session_id)
         return session_id
@@ -62,6 +65,31 @@ class SessionService:
         with _lock:
             if session_id in _registry:
                 _registry[session_id]["status_ws"] = None
+
+    def set_preview_ws(self, session_id: str, ws: Any) -> None:
+        with _lock:
+            if session_id in _registry:
+                _registry[session_id]["preview_ws"] = ws
+
+    def clear_preview_ws(self, session_id: str) -> None:
+        with _lock:
+            if session_id in _registry:
+                _registry[session_id]["preview_ws"] = None
+
+    def set_framework(self, session_id: str, framework: str) -> None:
+        with _lock:
+            if session_id in _registry:
+                _registry[session_id]["framework"] = framework
+
+    def set_preview_running(self, session_id: str, running: bool) -> None:
+        with _lock:
+            if session_id in _registry:
+                _registry[session_id]["preview_running"] = running
+
+    def is_preview_running(self, session_id: str) -> bool:
+        with _lock:
+            session = _registry.get(session_id)
+            return bool(session and session.get("preview_running"))
 
     def get_session_dir(self, session_id: str) -> Path:
         return self._base_dir / session_id

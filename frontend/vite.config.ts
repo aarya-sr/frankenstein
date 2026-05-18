@@ -6,14 +6,14 @@ import glsl from 'vite-plugin-glsl'
 export default defineConfig({
   plugins: [react(), tailwindcss(), glsl()],
   server: {
-    port: 5173,
+    port: 7751,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:7749',
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/ws': {
-        target: 'ws://localhost:8080',
+        target: 'ws://localhost:7749',
         ws: true,
       },
     },
