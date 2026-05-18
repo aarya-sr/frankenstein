@@ -112,6 +112,7 @@ class DockerService:
         network_disabled: bool = True,
     ) -> ExecutionResult:
         """Run a container with agent code mounted at /agent."""
+        agent_dir = agent_dir.resolve()
         container = None
         try:
             # Install extra deps if requirements.txt exists in the agent

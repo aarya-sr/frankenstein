@@ -72,6 +72,7 @@ class DockerStreamingService:
             return {"exit_code": -1, "duration_ms": 0, "output": "", "error": "Docker not available"}
 
         timeout = timeout or self._timeout
+        session_dir = Path(session_dir).resolve()
         container_env = {"PYTHONUNBUFFERED": "1", **(env or {})}
 
         # Check for requirements.txt

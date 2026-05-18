@@ -58,6 +58,9 @@ class StreamlitService:
         if not self._available:
             raise RuntimeError("Docker not available")
 
+        from pathlib import Path
+        session_dir = Path(session_dir).resolve()
+
         # Stop existing container for this session
         if session_id in self._containers:
             self.stop(session_id)
