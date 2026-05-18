@@ -6,6 +6,9 @@ import { SplitPane } from "./SplitPane"
 import { FileExplorer } from "./FileExplorer"
 import { CodeViewer } from "./CodeViewer"
 import { ExecutionPanel } from "./ExecutionPanel"
+import { StreamlitPreview } from "./StreamlitPreview"
+
+type Tab = "code" | "app"
 
 function PreviewLayout() {
   const { sessionId } = useParams<{ sessionId: string }>()
@@ -13,6 +16,7 @@ function PreviewLayout() {
   const dispatch = usePreviewDispatch()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [tab, setTab] = useState<Tab>("code")
 
   useEffect(() => {
     if (!sessionId) return
@@ -50,6 +54,7 @@ function PreviewLayout() {
   }
 
   const selectedCode = state.selectedFile ? state.files[state.selectedFile] ?? "" : ""
+  const hasAppPy = "app.py" in state.files
 
   return (
     <div className="h-screen flex flex-col bg-bg text-text-primary">
@@ -63,24 +68,54 @@ function PreviewLayout() {
             {sessionId.slice(0, 8)}
           </span>
         </div>
+
+        {/* Tab bar */}
+        {hasAppPy && (
+          <div className="flex items-center gap-1 bg-surface rounded-md p-0.5">
+            <button
+              onClick={() => setTab("code")}
+              className={`px-3 py-1 text-[12px] rounded transition-colors ${
+                tab === "code"
+                  ? "bg-accent text-white"
+                  : "text-text-tertiary hover:text-text-primary"
+              }`}
+            >
+              Code &amp; Run
+            </button>
+            <button
+              onClick={() => setTab("app")}
+              className={`px-3 py-1 text-[12px] rounded transition-colors ${
+                tab === "app"
+                  ? "bg-accent text-white"
+                  : "text-text-tertiary hover:text-text-primary"
+              }`}
+            >
+              Live App
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Main split pane */}
-      <SplitPane
-        left={
-          <div className="flex flex-col h-full bg-surface">
-            <FileExplorer
-              files={state.files}
-              selectedFile={state.selectedFile}
-              onSelect={(f) => dispatch({ type: "SELECT_FILE", payload: f })}
-            />
-            {state.selectedFile && (
-              <CodeViewer code={selectedCode} filename={state.selectedFile} />
-            )}
-          </div>
-        }
-        right={<ExecutionPanel sessionId={sessionId} />}
-      />
+      {/* Content */}
+      {tab === "code" ? (
+        <SplitPane
+          left={
+            <div className="flex flex-col h-full bg-surface">
+              <FileExplorer
+                files={state.files}
+                selectedFile={state.selectedFile}
+                onSelect={(f) => dispatch({ type: "SELECT_FILE", payload: f })}
+              />
+              {state.selectedFile && (
+                <CodeViewer code={selectedCode} filename={state.selectedFile} />
+              )}
+            </div>
+          }
+          right={<ExecutionPanel sessionId={sessionId} />}
+        />
+      ) : (
+        <StreamlitPreview sessionId={sessionId} />
+      )}
     </div>
   )
 }

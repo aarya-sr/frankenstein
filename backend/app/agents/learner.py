@@ -20,7 +20,7 @@ from app.models.spec import AgentSpec
 from app.models.state import FrankensteinState
 from app.models.testing import TestReport
 from app.services.chroma_service import ChromaService
-from app.services.llm_service import LLMService
+from app.services.llm_service import LLMService, extract_json
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,8 @@ def learner_agent(
     test_results: TestReport | None = state.get("test_results")
     failure_traces = state.get("failure_traces", [])
 
-    logger.info("Learner: analysing build for '%s'", spec.metadata.name)
+    session_id = state.get("session_id", "?")
+    logger.info("[%s] Learner: START — analysing build for '%s'", session_id, spec.metadata.name)
 
     # ── 1. Extract patterns via LLM ──────────────────────────────────
     patterns = _extract_patterns(llm, state)
@@ -146,6 +147,7 @@ def learner_agent(
         requirements.domain,
     )
 
+    logger.info("[%s] Learner: DONE — outcome=%s", session_id, outcome_status)
     return {"build_outcome": outcome}
 
 
@@ -190,7 +192,7 @@ def _extract_patterns(llm: LLMService, state: FrankensteinState) -> dict:
     )
 
     try:
-        return json.loads(response)
+        return json.loads(extract_json(response))
     except json.JSONDecodeError as e:
         logger.error("Learner: pattern extraction parse failed: %s", e)
         return {

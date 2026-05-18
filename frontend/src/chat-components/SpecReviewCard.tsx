@@ -54,7 +54,18 @@ export function SpecReviewCard({ spec, critique, reasoning, onApprove, onFeedbac
     toolNameMap.set(t.id, t)
   }
 
-  if (collapsed) return null
+  if (collapsed) {
+    return (
+      <div className="bg-surface-elevated rounded-xl border border-green-500/50 px-5 py-3 flex items-center gap-3">
+        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+            <path d="M4 10L8.5 14.5L16 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <span className="text-[13px] text-text-primary font-medium">Blueprint approved — building your agents...</span>
+      </div>
+    )
+  }
 
   return (
     <div

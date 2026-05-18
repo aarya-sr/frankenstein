@@ -44,7 +44,30 @@ class SessionService:
 
     def session_exists(self, session_id: str) -> bool:
         with _lock:
-            return session_id in _registry
+            if session_id in _registry:
+                return True
+        # Check disk — session dir may survive backend restarts
+        session_dir = self._base_dir / session_id
+        if session_dir.is_dir():
+            self._register_from_disk(session_id)
+            return True
+        return False
+
+    def _register_from_disk(self, session_id: str) -> None:
+        """Re-register a session that exists on disk but not in memory."""
+        with _lock:
+            if session_id not in _registry:
+                _registry[session_id] = {
+                    "session_id": session_id,
+                    "created_at": datetime.utcnow(),
+                    "stage": "idle",
+                    "chat_ws": None,
+                    "status_ws": None,
+                    "preview_ws": None,
+                    "framework": None,
+                    "preview_running": False,
+                }
+                logger.info("Re-registered session from disk: %s", session_id)
 
     def set_chat_ws(self, session_id: str, ws: Any) -> None:
         with _lock:

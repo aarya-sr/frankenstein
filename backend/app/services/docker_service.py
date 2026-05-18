@@ -38,6 +38,11 @@ class DockerService:
 
     def __init__(self, timeout: int | None = None):
         self._timeout = timeout or settings.docker_timeout
+        self._client = None
+        self._available = False
+        self._connect()
+
+    def _connect(self):
         try:
             self._client = docker.from_env()
             self._available = True
@@ -48,6 +53,8 @@ class DockerService:
 
     @property
     def available(self) -> bool:
+        if not self._available:
+            self._connect()
         return self._available
 
     def run_code_bundle(

@@ -25,7 +25,7 @@ from app.models.spec import AgentSpec
 from app.models.state import FrankensteinState
 from app.models.testing import FailureTrace, TestCase, TestReport, TestResult
 from app.services.docker_service import DockerService, ExecutionResult
-from app.services.llm_service import LLMService
+from app.services.llm_service import LLMService, extract_json
 
 logger = logging.getLogger(__name__)
 
@@ -70,33 +70,45 @@ def tester_agent(
 
     spec: AgentSpec = state["spec"]
     code: CodeBundle = state["generated_code"]
-    logger.info("Tester: validating '%s' (%d files)", spec.metadata.name, len(code.files))
+    session_id = state.get("session_id", "?")
+    logger.info("[%s] Tester: START — validating '%s' (%d files: %s)",
+                session_id, spec.metadata.name, len(code.files), list(code.files.keys()))
 
+    logger.info("[%s] Tester: generating test cases...", session_id)
     test_cases = _generate_test_cases(llm, spec, code)
+    logger.info("[%s] Tester: generated %d test cases", session_id, len(test_cases))
 
     # Static validation (same as Builder's)
+    logger.info("[%s] Tester: running static validation...", session_id)
     static_errors = _validation.run_all(code.files, spec=spec, framework=spec.metadata.framework_target)
     syntax_errors = [e for e in static_errors if e.get("code") == "SYNTAX_ERROR"]
     other_static = [e for e in static_errors if e.get("code") != "SYNTAX_ERROR"]
+    logger.info("[%s] Tester: static validation — %d syntax errors, %d other issues",
+                session_id, len(syntax_errors), len(other_static))
 
     # Execute live
     exec_result: ExecutionResult | None = None
     if syntax_errors:
-        logger.info("Tester: skipping execution — syntax errors found")
+        logger.info("[%s] Tester: SKIPPING execution — syntax errors found", session_id)
     else:
         env = _build_env(spec)
         live = settings.tester_live_execution and bool(os.getenv("OPENROUTER_API_KEY"))
         if docker.available and docker.image_exists():
-            logger.info("Tester: running in Docker (live=%s, network=%s)", live, live)
+            logger.info("[%s] Tester: running in Docker (live=%s, network=%s)", session_id, live, live)
             exec_result = docker.run_code_bundle(
                 code,
                 env=env,
                 network_disabled=not live,
                 timeout=settings.docker_timeout * 2 if live else settings.docker_timeout,
             )
+            logger.info("[%s] Tester: Docker execution done — exit_code=%s, timed_out=%s",
+                        session_id,
+                        exec_result.exit_code if exec_result else "N/A",
+                        exec_result.timed_out if exec_result else "N/A")
         else:
-            logger.info("Tester: Docker unavailable — subprocess fallback (live=%s)", live)
+            logger.info("[%s] Tester: Docker unavailable — subprocess fallback (live=%s)", session_id, live)
             exec_result = _run_subprocess(code, env, settings.docker_timeout * 2 if live else settings.docker_timeout)
+            logger.info("[%s] Tester: subprocess done — exit_code=%s", session_id, exec_result.exit_code if exec_result else "N/A")
 
     # Build results
     results: list[TestResult] = []
@@ -143,19 +155,24 @@ def tester_agent(
         results=results,
     )
 
+    logger.info("[%s] Tester: results — total=%d, passed=%d, failed=%d, errors=%d, all_passed=%s",
+                session_id, len(results), sum(1 for r in results if r.status == "passed"),
+                n_failed, n_errors, all_passed)
+
     # Failure tracing
     failure_traces: list[FailureTrace] = []
     if not all_passed:
-        # First try rule-based
+        logger.info("[%s] Tester: classifying failures...", session_id)
         rule_traces, unclassified = _classify_failures_rules(all_errors, exec_result, spec)
         failure_traces.extend(rule_traces)
-        # LLM handles whatever the rules didn't classify
         if unclassified:
+            logger.info("[%s] Tester: %d unclassified errors, using LLM fallback", session_id, len(unclassified))
             failure_traces.extend(_trace_failures_llm(llm, spec, code, unclassified))
-        logger.info("Tester: %d failure traces (%d rule-based)", len(failure_traces), len(rule_traces))
+        logger.info("[%s] Tester: %d failure traces (%d rule-based)", session_id, len(failure_traces), len(rule_traces))
     else:
-        logger.info("Tester: all checks passed")
+        logger.info("[%s] Tester: ALL CHECKS PASSED", session_id)
 
+    logger.info("[%s] Tester: DONE", session_id)
     return {
         "test_cases": test_cases,
         "test_results": report,
@@ -395,7 +412,7 @@ def _trace_failures_llm(
         temperature=0.1,
     )
     try:
-        data = json.loads(response)
+        data = json.loads(extract_json(response))
         return [FailureTrace(**ft) for ft in data.get("failure_traces", [])]
     except (json.JSONDecodeError, Exception) as e:
         logger.error("Tester: LLM failure trace parse failed: %s", e)
@@ -432,7 +449,7 @@ def _generate_test_cases(llm, spec, code):
         temperature=0.2,
     )
     try:
-        data = json.loads(response)
+        data = json.loads(extract_json(response))
         return [TestCase(**tc) for tc in data.get("test_cases", [])]
     except Exception as e:
         logger.error("Tester: test generation parse failed: %s", e)

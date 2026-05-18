@@ -7,6 +7,26 @@ from app.config import MODEL_ROUTING, OPENROUTER_API_KEY, OPENROUTER_BASE_URL
 
 logger = logging.getLogger(__name__)
 
+
+def extract_json(raw: str) -> str:
+    """Strip markdown fences and leading prose to isolate a JSON object."""
+    text = raw.strip()
+    if text.startswith("```"):
+        first_newline = text.index("\n") if "\n" in text else len(text)
+        text = text[first_newline + 1:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+    if text and text[0] != "{":
+        brace = text.find("{")
+        if brace != -1:
+            text = text[brace:]
+    if text:
+        last_brace = text.rfind("}")
+        if last_brace != -1:
+            text = text[: last_brace + 1]
+    return text
+
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 1.0  # seconds
 RETRYABLE_ERRORS = (APIError, APITimeoutError, RateLimitError)
@@ -69,10 +89,21 @@ class LLMService:
             kwargs["response_format"] = {"type": "json_object"}
 
         last_error = None
+        prompt_len = sum(len(m.get("content", "")) for m in messages)
+        logger.info("LLM CALL: agent=%s model=%s temp=%.2f json=%s prompt_chars=%d",
+                     agent_name, model, temperature, json_mode, prompt_len)
+        call_start = time.time()
         for attempt in range(MAX_RETRIES + 1):
             try:
                 response = self._client.chat.completions.create(**kwargs)
-                return response.choices[0].message.content or ""
+                elapsed = round(time.time() - call_start, 1)
+                content = response.choices[0].message.content or ""
+                usage = getattr(response, "usage", None)
+                tokens_in = getattr(usage, "prompt_tokens", "?") if usage else "?"
+                tokens_out = getattr(usage, "completion_tokens", "?") if usage else "?"
+                logger.info("LLM DONE: agent=%s model=%s elapsed=%.1fs tokens_in=%s tokens_out=%s response_chars=%d",
+                             agent_name, model, elapsed, tokens_in, tokens_out, len(content))
+                return content
             except RETRYABLE_ERRORS as e:
                 last_error = e
                 if attempt < MAX_RETRIES:

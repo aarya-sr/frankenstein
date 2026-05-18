@@ -51,35 +51,39 @@ from app.pipeline.checkpoints import (  # noqa: E402
 
 def route_after_critique(state: FrankensteinState) -> str:
     """Critic → Architect (loop on criticals) or → human_review_spec."""
+    session_id = state.get("session_id", "?")
     critique = state.get("critique")
     if not critique:
+        logger.info("[%s] ROUTE: critic → human_review_spec (no critique)", session_id)
         return "human_review_spec"
 
     criticals = [f for f in critique.findings if f.severity == "critical"]
+    warnings = [f for f in critique.findings if f.severity == "warning"]
     iteration = state.get("spec_iteration", 0)
     max_iter = settings.max_spec_iterations
 
     if criticals and iteration < max_iter:
         logger.info(
-            "Routing: critic → architect (criticals=%d, iteration=%d/%d)",
-            len(criticals),
-            iteration,
-            max_iter,
+            "[%s] ROUTE: critic → architect (criticals=%d, warnings=%d, iteration=%d/%d)",
+            session_id, len(criticals), len(warnings), iteration, max_iter,
         )
         return "architect"
 
-    logger.info("Routing: critic → human_review_spec")
+    logger.info("[%s] ROUTE: critic → human_review_spec (criticals=%d, iteration=%d/%d)",
+                session_id, len(criticals), iteration, max_iter)
     return "human_review_spec"
 
 
 def route_after_test(state: FrankensteinState) -> str:
     """Tester → learner (pass) | builder (code fix) | architect (spec fix)."""
+    session_id = state.get("session_id", "?")
     test_results = state.get("test_results")
     if not test_results:
+        logger.info("[%s] ROUTE: tester → learner (no test results)", session_id)
         return "learner"
 
     if test_results.all_passed:
-        logger.info("Routing: tester → learner (all passed)")
+        logger.info("[%s] ROUTE: tester → learner (all %d tests passed)", session_id, test_results.total)
         return "learner"
 
     # Check failure traces for root cause level
@@ -94,24 +98,24 @@ def route_after_test(state: FrankensteinState) -> str:
     if has_spec_failure:
         if spec_iter < max_spec:
             logger.info(
-                "Routing: tester → architect (spec-level failure, spec_iter=%d/%d)",
-                spec_iter, max_spec,
+                "[%s] ROUTE: tester → architect (spec-level failure, spec_iter=%d/%d)",
+                session_id, spec_iter, max_spec,
             )
             return "architect"
         logger.warning(
-            "Routing: tester → learner (spec-level failure but spec_iter cap %d reached)",
-            max_spec,
+            "[%s] ROUTE: tester → learner (spec-level failure but spec_iter cap %d reached)",
+            session_id, max_spec,
         )
         return "learner"
 
     if build_iter >= max_build:
         logger.warning(
-            "Routing: tester → learner (build_iter cap %d reached, tests still failing)",
-            max_build,
+            "[%s] ROUTE: tester → learner (build_iter cap %d reached, tests still failing)",
+            session_id, max_build,
         )
         return "learner"
 
-    logger.info("Routing: tester → builder (code-level fix, build_iter=%d/%d)", build_iter, max_build)
+    logger.info("[%s] ROUTE: tester → builder (code-level fix, build_iter=%d/%d)", session_id, build_iter, max_build)
     return "builder"
 
 

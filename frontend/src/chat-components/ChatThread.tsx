@@ -9,6 +9,7 @@ import { CompletionCard } from "./CompletionCard"
 import { QuestionGroupCard } from "./QuestionGroupCard"
 import { TypingIndicator } from "./TypingIndicator"
 import { ActivityPill } from "./ActivityPill"
+import { CodingScreen } from "./CodingScreen"
 import { ErrorCard } from "./ErrorCard"
 import type { RequirementsDoc, AgentSpec, CritiqueReport } from "../types/models"
 
@@ -108,6 +109,16 @@ export function ChatThread({ sendMessage }: { sendMessage: (data: Record<string,
 
   // Extract original prompt from first user message
   const originalPrompt = messages.find(m => m.variant === "user")?.payload?.text as string | undefined
+
+  // Extract latest activity text for CodingScreen
+  const lastActivity = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].type === "activity") {
+        return (messages[i].payload as { text?: string }).text
+      }
+    }
+    return undefined
+  })()
 
   // Track if PhaseDividers were already rendered (deduplication)
   let requirementsDividerShown = false
@@ -254,7 +265,14 @@ export function ChatThread({ sendMessage }: { sendMessage: (data: Record<string,
 
         {isWorking && (
           <div className="mt-4">
-            <TypingIndicator currentStage={currentStage} />
+            {["builder", "tester", "architect", "critic"].includes(currentStage) ? (
+              <CodingScreen
+                currentStage={currentStage}
+                activity={lastActivity}
+              />
+            ) : (
+              <TypingIndicator currentStage={currentStage} />
+            )}
           </div>
         )}
 

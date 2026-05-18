@@ -275,6 +275,19 @@ def elicitor_ask(
         current_round, len(round_questions), len(question_categories),
     )
 
+    # If no questions to ask, skip interrupt and mark complete
+    if not round_questions:
+        logger.info("Round %d — no questions generated, marking complete", current_round)
+        gap_scores = {c.name: c.confidence for c in gap_result.categories}
+        return {
+            "elicitor_questions": all_questions,
+            "human_answers": all_answers,
+            "elicitor_round": current_round,
+            "elicitor_gap_scores": gap_scores,
+            "elicitor_all_complete": True,
+            "elicitor_domain_insights": domain_insights,
+        }
+
     # Interrupt: pause for human answer
     user_answer = interrupt(question_payload)
 

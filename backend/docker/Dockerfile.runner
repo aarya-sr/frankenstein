@@ -15,7 +15,9 @@ RUN pip install --no-cache-dir \
     pandas \
     pypdf \
     beautifulsoup4 \
-    pydantic
+    pydantic \
+    python-dotenv \
+    streamlit
 
 # Non-root user for sandbox safety
 RUN useradd -m runner

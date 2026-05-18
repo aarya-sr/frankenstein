@@ -87,13 +87,13 @@ export function CodingScreen({ currentStage, activity }: Props) {
 
   return (
     <div className="animate-[fadeUp_200ms_ease-out] max-w-[520px] w-full">
-      <div className="rounded-xl overflow-hidden border border-border bg-[#0d1117] shadow-lg">
+      <div className="rounded-xl overflow-hidden border border-border/50 bg-[#0d1117]/80 shadow-lg backdrop-blur-sm">
         {/* Title bar */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-[#161b22] border-b border-[#30363d]">
+        <div className="flex items-center gap-2 px-3 py-2 bg-[#161b22]/80 border-b border-[#30363d]/50">
           <div className="flex gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-[#f85149]" />
-            <div className="w-2.5 h-2.5 rounded-full bg-[#d29922]" />
-            <div className="w-2.5 h-2.5 rounded-full bg-[#3fb950]" />
+            <div className="w-2.5 h-2.5 rounded-full bg-[#f85149]/70" />
+            <div className="w-2.5 h-2.5 rounded-full bg-[#d29922]/70" />
+            <div className="w-2.5 h-2.5 rounded-full bg-[#3fb950]/70" />
           </div>
           <span className="text-[10px] text-[#8b949e] font-mono ml-2">{stageInfo.title}</span>
           <div className="ml-auto flex items-center gap-1.5">
@@ -102,30 +102,46 @@ export function CodingScreen({ currentStage, activity }: Props) {
           </div>
         </div>
 
-        {/* Code area */}
-        <div ref={containerRef} className="px-3 py-2 font-mono text-[11px] leading-[1.7] h-[200px] overflow-hidden">
-          {lines.map((line, i) => {
-            const lineNum = lineOffset + i + 1
-            return (
-              <div key={`${lineOffset}-${i}`} className="flex animate-[fadeIn_150ms_ease-out]">
-                <span className="w-6 text-right text-[#484f58] select-none mr-3 shrink-0">
-                  {lineNum}
-                </span>
-                <span>
-                  <HighlightedCode text={line} />
-                  {i === lines.length - 1 && (
-                    <span className="inline-block w-[6px] h-[14px] bg-amber-500/80 ml-0.5 align-text-bottom"
-                      style={{ animation: "blink 1s step-end infinite" }} />
-                  )}
-                </span>
-              </div>
-            )
-          })}
+        {/* Code area with top fade gradient */}
+        <div className="relative">
+          {/* Fade overlay — lines get more transparent toward the top */}
+          <div
+            className="absolute inset-x-0 top-0 h-24 z-10 pointer-events-none"
+            style={{
+              background: "linear-gradient(to bottom, rgba(13,17,23,0.95) 0%, rgba(13,17,23,0.6) 40%, transparent 100%)",
+            }}
+          />
+          <div ref={containerRef} className="px-3 py-2 font-mono text-[11px] leading-[1.7] h-[200px] overflow-hidden">
+            {lines.map((line, i) => {
+              const lineNum = lineOffset + i + 1
+              // Lines fade from transparent at top to opaque at bottom
+              const progress = lines.length > 1 ? i / (lines.length - 1) : 1
+              const opacity = 0.3 + progress * 0.7
+              return (
+                <div
+                  key={`${lineOffset}-${i}`}
+                  className="flex animate-[fadeIn_150ms_ease-out]"
+                  style={{ opacity }}
+                >
+                  <span className="w-6 text-right text-[#484f58] select-none mr-3 shrink-0">
+                    {lineNum}
+                  </span>
+                  <span>
+                    <HighlightedCode text={line} />
+                    {i === lines.length - 1 && (
+                      <span className="inline-block w-[6px] h-[14px] bg-amber-500/80 ml-0.5 align-text-bottom"
+                        style={{ animation: "blink 1s step-end infinite" }} />
+                    )}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {/* Activity bar */}
         {activity && (
-          <div className="px-3 py-1.5 border-t border-[#30363d] bg-[#161b22]">
+          <div className="px-3 py-1.5 border-t border-[#30363d]/50 bg-[#161b22]/80">
             <div className="flex items-center gap-2">
               <svg className="w-3 h-3 text-amber-500 animate-spin shrink-0" viewBox="0 0 16 16" fill="none">
                 <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="28" strokeDashoffset="8" />

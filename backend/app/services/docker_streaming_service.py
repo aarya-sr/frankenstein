@@ -26,6 +26,11 @@ class DockerStreamingService:
 
     def __init__(self, timeout: int | None = None):
         self._timeout = timeout or (settings.docker_timeout * 2)
+        self._client = None
+        self._available = False
+        self._connect()
+
+    def _connect(self):
         try:
             self._client = docker.from_env()
             self._available = True
@@ -35,6 +40,8 @@ class DockerStreamingService:
 
     @property
     def available(self) -> bool:
+        if not self._available:
+            self._connect()
         return self._available
 
     def image_exists(self) -> bool:
