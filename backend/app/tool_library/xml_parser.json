@@ -1,0 +1,14 @@
+{
+  "id": "xml_parser",
+  "name": "XML Parser",
+  "description": "Parses XML documents into structured JSON data. Handles nested elements, attributes, and namespaces.",
+  "category": "data_ingestion",
+  "accepts": ["xml", "text"],
+  "outputs": ["json"],
+  "output_format": "json",
+  "limitations": ["memory-limited for files over 200MB", "does not validate against XSD schemas"],
+  "dependencies": [],
+  "code_template": "import xml.etree.ElementTree as ET\nimport json\n\ndef xml_parser(data: dict) -> dict:\n    \"\"\"Parse XML content into structured JSON.\"\"\"\n    content = data.get(\"content\", \"\")\n    root = ET.fromstring(content)\n    \n    def elem_to_dict(elem):\n        result = {}\n        if elem.attrib:\n            result[\"@attributes\"] = dict(elem.attrib)\n        if elem.text and elem.text.strip():\n            result[\"text\"] = elem.text.strip()\n        for child in elem:\n            child_data = elem_to_dict(child)\n            if child.tag in result:\n                if not isinstance(result[child.tag], list):\n                    result[child.tag] = [result[child.tag]]\n                result[child.tag].append(child_data)\n            else:\n                result[child.tag] = child_data\n        return result\n    \n    parsed = elem_to_dict(root)\n    return {\"root_tag\": root.tag, \"data\": parsed}\n",
+  "compatible_with": ["json_transformer", "rule_engine"],
+  "incompatible_with": []
+}

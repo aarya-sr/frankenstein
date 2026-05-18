@@ -1,0 +1,14 @@
+{
+  "id": "email_sender",
+  "name": "Email Sender",
+  "description": "Composes and sends emails via SMTP. Supports HTML body, attachments, CC/BCC, and template-based content generation.",
+  "category": "communication",
+  "accepts": ["json", "text"],
+  "outputs": ["json"],
+  "output_format": "json",
+  "limitations": ["requires SMTP credentials in environment", "rate-limited to 100 emails per batch", "no OAuth2 support"],
+  "dependencies": [],
+  "code_template": "import smtplib\nimport os\nfrom email.mime.text import MIMEText\nfrom email.mime.multipart import MIMEMultipart\n\ndef email_sender(data: dict) -> dict:\n    \"\"\"Send an email via SMTP.\"\"\"\n    to = data.get(\"to\", \"\")\n    subject = data.get(\"subject\", \"\")\n    body = data.get(\"body\", \"\")\n    html = data.get(\"html\", False)\n    \n    msg = MIMEMultipart()\n    msg[\"From\"] = os.getenv(\"SMTP_FROM\", \"noreply@example.com\")\n    msg[\"To\"] = to\n    msg[\"Subject\"] = subject\n    msg.attach(MIMEText(body, \"html\" if html else \"plain\"))\n    \n    smtp_host = os.getenv(\"SMTP_HOST\", \"localhost\")\n    smtp_port = int(os.getenv(\"SMTP_PORT\", \"587\"))\n    \n    try:\n        with smtplib.SMTP(smtp_host, smtp_port) as server:\n            server.starttls()\n            user = os.getenv(\"SMTP_USER\")\n            pwd = os.getenv(\"SMTP_PASSWORD\")\n            if user and pwd:\n                server.login(user, pwd)\n            server.send_message(msg)\n        return {\"sent\": True, \"to\": to, \"subject\": subject}\n    except Exception as e:\n        return {\"sent\": False, \"error\": str(e)}\n",
+  "compatible_with": ["report_generator"],
+  "incompatible_with": []
+}

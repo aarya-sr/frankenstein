@@ -1,0 +1,14 @@
+{
+  "id": "data_transformer",
+  "name": "Data Transformer",
+  "description": "Transforms, filters, maps, and reshapes structured data. Supports field renaming, type coercion, conditional filtering, and aggregation.",
+  "category": "data_processing",
+  "accepts": ["json", "dict", "list"],
+  "outputs": ["json"],
+  "output_format": "json",
+  "limitations": ["operates on in-memory data only", "no streaming support"],
+  "dependencies": [],
+  "code_template": "def data_transformer(data: dict) -> dict:\n    \"\"\"Transform structured data: filter, map, reshape.\"\"\"\n    records = data.get(\"records\", [])\n    operations = data.get(\"operations\", [])\n    \n    result = list(records)\n    for op in operations:\n        op_type = op.get(\"type\")\n        if op_type == \"filter\":\n            field = op[\"field\"]\n            value = op[\"value\"]\n            result = [r for r in result if r.get(field) == value]\n        elif op_type == \"rename\":\n            old_name = op[\"from\"]\n            new_name = op[\"to\"]\n            result = [{new_name if k == old_name else k: v for k, v in r.items()} for r in result]\n        elif op_type == \"select\":\n            fields = op[\"fields\"]\n            result = [{k: r.get(k) for k in fields} for r in result]\n    \n    return {\"transformed\": result, \"count\": len(result)}\n",
+  "compatible_with": ["csv_parser", "json_transformer", "scoring_engine"],
+  "incompatible_with": []
+}

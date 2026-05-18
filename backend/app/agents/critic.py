@@ -22,6 +22,7 @@ from app.models.critique import CritiqueReport, Finding
 from app.models.spec import AgentSpec, GraphEdge
 from app.models.state import FrankensteinState
 from app.services.chroma_service import ChromaService
+from app.services.llm_service import extract_json
 from app.services.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
@@ -498,7 +499,7 @@ def _semantic_review(
     )
 
     try:
-        data = json.loads(response)
+        data = json.loads(extract_json(response))
         additional = [Finding(**f) for f in data.get("additional_findings", [])]
         summary = data.get("summary", "Review complete.")
         return {"additional_findings": additional, "summary": summary}
@@ -613,7 +614,16 @@ def _check_tool_template_availability(spec: AgentSpec, chroma: ChromaService) ->
                               "or remove this tool",
             ))
             continue
-        if not schema or not getattr(schema, "code_template", None):
+        if not schema:
+            findings.append(Finding(
+                vector="tool_template_availability",
+                severity="critical",
+                description=f"Tool '{tool.id}' references library_ref '{tool.library_ref}' which does not exist in the library",
+                location=f"tools[id={tool.id}]",
+                evidence=f"chroma.get_tool_by_id('{tool.library_ref}') returned None",
+                suggested_fix="Use only tool IDs from the available Tool Schema Library, or remove this tool",
+            ))
+        elif not getattr(schema, "code_template", None):
             findings.append(Finding(
                 vector="tool_template_availability",
                 severity="warning",

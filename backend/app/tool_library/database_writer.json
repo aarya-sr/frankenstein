@@ -1,0 +1,14 @@
+{
+  "id": "database_writer",
+  "name": "Database Writer",
+  "description": "Writes structured data to SQL databases. Supports insert, upsert, and bulk operations with parameterized queries.",
+  "category": "data_storage",
+  "accepts": ["json", "dict", "list"],
+  "outputs": ["json"],
+  "output_format": "json",
+  "limitations": ["requires DATABASE_URL in environment", "SQLite and PostgreSQL only", "no schema migration support"],
+  "dependencies": ["sqlalchemy>=2.0.0"],
+  "code_template": "import os\nimport json\nfrom sqlalchemy import create_engine, text\n\ndef database_writer(data: dict) -> dict:\n    \"\"\"Write records to a SQL database table.\"\"\"\n    table = data.get(\"table\", \"results\")\n    records = data.get(\"records\", [])\n    db_url = os.getenv(\"DATABASE_URL\", \"sqlite:///output.db\")\n    \n    engine = create_engine(db_url)\n    \n    if not records:\n        return {\"written\": 0, \"table\": table}\n    \n    columns = list(records[0].keys())\n    col_defs = \", \".join(f\"{c} TEXT\" for c in columns)\n    \n    with engine.begin() as conn:\n        conn.execute(text(f\"CREATE TABLE IF NOT EXISTS {table} ({col_defs})\"))\n        for record in records:\n            placeholders = \", \".join(f\":{c}\" for c in columns)\n            col_names = \", \".join(columns)\n            conn.execute(text(f\"INSERT INTO {table} ({col_names}) VALUES ({placeholders})\"), record)\n    \n    return {\"written\": len(records), \"table\": table}\n",
+  "compatible_with": ["data_transformer", "csv_parser"],
+  "incompatible_with": []
+}

@@ -20,7 +20,7 @@ from app.models.spec import AgentSpec
 from app.models.state import FrankensteinState
 from app.models.tools import ToolSchema
 from app.services.chroma_service import ChromaService
-from app.services.llm_service import LLMService
+from app.services.llm_service import LLMService, extract_json
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,11 @@ Return ONE JSON object matching this exact schema (no extra keys):
 
 CRITICAL RULES:
 - Every agent MUST appear in io_contracts AND error_handling
-- tools[].library_ref MUST match an ID from the provided Tool Schema Library
+- tools[].library_ref MUST match an ID from the provided Tool Schema Library — NEVER
+  invent tool IDs that are not in the library. If a capability is not covered by the
+  available tools, implement it as inline logic in the agent rather than referencing
+  a nonexistent tool. The ONLY valid library_ref values are the "id" fields from the
+  "Available Tools from Library" section below.
 - agents[].tools MUST reference tools[].id values
 - execution_flow.graph is REQUIRED when pattern is "graph", null otherwise
 - For "graph" edges, use "from_agent" and "to_agent" as the key names
@@ -252,9 +256,12 @@ def _generate(
     )
 
     # ── Build LLM context ────────────────────────────────────────────
+    tool_ids = [t.id for t in all_tools]
     user_parts = [
         "## Requirements\n\n" + requirements.model_dump_json(indent=2),
-        "\n\n## Available Tools from Library\n\n" + _format_tools(all_tools),
+        "\n\n## Available Tools from Library\n\n"
+        + f"**VALID tool IDs (only use these as library_ref):** {tool_ids}\n\n"
+        + _format_tools(all_tools),
     ]
     if past_specs:
         user_parts.append(
@@ -370,9 +377,11 @@ def _format_tools(tools: list[ToolSchema]) -> str:
 
 def _parse_spec(response: str) -> AgentSpec:
     """Parse LLM JSON response into AgentSpec, normalising edge key names."""
+    cleaned = extract_json(response)
     try:
-        data = json.loads(response)
+        data = json.loads(cleaned)
     except json.JSONDecodeError as e:
+        logger.error("Raw architect response (first 500 chars): %s", response[:500])
         raise ValueError(f"Architect returned invalid JSON: {e}") from e
 
     # LLMs sometimes use "from"/"to" instead of "from_agent"/"to_agent"
